@@ -1,0 +1,41 @@
+@import 'tailwindcss';
+
+/*
+ * Dark mode follows the system setting: Tailwind's default `dark:` variant is
+ * the `prefers-color-scheme` media query, and `color-scheme` below makes native
+ * controls (date picker, scrollbars) match.
+ */
+:root {
+  color-scheme: light dark;
+
+  /*
+   * Safe-area insets. Browsers/iOS expose env(safe-area-inset-*); Capacitor's
+   * SystemBars plugin injects --safe-area-inset-* on Android WebViews where
+   * env() is unreliable. Use whichever is larger.
+   */
+  --inset-top: max(env(safe-area-inset-top, 0px), var(--safe-area-inset-top, 0px));
+  --inset-right: max(env(safe-area-inset-right, 0px), var(--safe-area-inset-right, 0px));
+  --inset-bottom: max(env(safe-area-inset-bottom, 0px), var(--safe-area-inset-bottom, 0px));
+  --inset-left: max(env(safe-area-inset-left, 0px), var(--safe-area-inset-left, 0px));
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  @apply bg-slate-50 text-slate-900 antialiased dark:bg-slate-950 dark:text-slate-100;
+  /* No grey flash / blue highlight on tap in the Android WebView. */
+  -webkit-tap-highlight-color: transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
