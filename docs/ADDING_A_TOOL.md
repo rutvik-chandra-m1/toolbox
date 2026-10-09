@@ -129,11 +129,47 @@ That is the whole job. The Android app and the PWA pick the tool up on their nex
 | --- | --- |
 | Buttons, dialogs, form fields, empty state, segmented control, error boundary, page width | `@/shared/ui` (`Button`, `IconButton`, `ConfirmDialog`, `Dialog`, `Field`, `Input`, `Select`, `Segmented`, `EmptyState`, `Spinner`, `PageContainer`, `ErrorBoundary`) |
 | Persisting data | `@/shared/storage`: `useCollection(toolId, name)` in components, or `useStorage().collection(toolId, name)` anywhere you have React context |
+| Letting the user **pick a file**, **give a file back**, or drop one on the page | `@/shared/files`: `pickFile(acceptedTypes)`, `saveFile(blob, filename)`, `useDropTarget(...)`. See [File helpers](#file-helpers-for-tools-that-take-or-produce-files) below |
+| Showing a file size / making a safe file name | `formatFileSize(bytes)`, `sanitizeFilename(name)` from `@/shared/files` |
 | Unique ids | `createId()` from `@/shared/lib/id` |
 | Calendar dates | `@/shared/lib/dates` (local `YYYY-MM-DD` helpers) |
 | Joining class names | `cn()` from `@/shared/lib/cn` |
 
 Styling is Tailwind, mobile first. Dark mode follows the system through `dark:` classes. Keep touch targets at least 44 px (the shared `Button` and `IconButton` already are 48 px).
+
+## File helpers (for tools that take or produce files)
+
+Tools like **Word to PDF** are *file in, file out*: they store nothing, they read a file the user picks and hand a new file back. Use these helpers from `@/shared/files` instead of writing your own, because the obvious browser tricks do not all work inside the Android app.
+
+```ts
+import { isNativePlatform, pickFile, saveFile, useDropTarget } from '@/shared/files';
+```
+
+| Helper | What it does |
+| --- | --- |
+| `pickFile(acceptedTypes)` | Opens the system file chooser and resolves with the chosen `File`, or `null` if the user cancelled. Pass extensions **and** MIME types, e.g. `['.pdf', 'application/pdf']` (Android pickers filter by MIME type). Call it from a click handler. Works in the browser and in the Android app. Always validate the file you get back: the filter is only a hint. |
+| `saveFile(blob, filename)` | Gives the user the file. **Browser:** a normal download. **Android app:** blob downloads do not work inside the Capacitor WebView, so it writes the file with the Filesystem plugin (app cache) and opens the system **share sheet** with the Share plugin, from which the user can open it, save it to Files/Drive, or send it. The platform is detected at runtime, the file name is sanitised, and dismissing the share sheet is not treated as an error. Resolves with `{ method: 'download' \| 'share', uri? }`. |
+| `useDropTarget({ onDropFiles, disabled })` | Hook for drag-and-drop on a laptop. Spread the returned `handlers` on an element; `dragging` is true while a file is held over it. Only drags that carry files react. |
+| `isNativePlatform()` | `true` inside the Android app. Use it only for wording (such as "Open / Share" versus "Download again"); `saveFile` already handles the behaviour. |
+| `formatFileSize(bytes)` | `"3.2 MB"` |
+| `sanitizeFilename(name)` | Removes characters that are illegal in file names on Windows/Android. |
+
+A minimal file-in / file-out tool:
+
+```tsx
+const picked = await pickFile(['.txt', 'text/plain']);
+if (!picked) return; // cancelled
+const result = new Blob([(await picked.text()).toUpperCase()], { type: 'text/plain' });
+await saveFile(result, 'LOUD.txt'); // download on a laptop, share sheet on the phone
+```
+
+Things to know:
+
+- **Do not** save with `<a download href={URL.createObjectURL(blob)}>` yourself, or `window.open(blobUrl)`: it works in a browser and silently does nothing in the Android app. Use `saveFile`.
+- **Load heavy libraries on demand** with a dynamic `import()` inside the function that needs them (as Word to PDF does for docx-preview, html2canvas-pro and jsPDF), so they cost nothing at startup and only download when the tool is used. Vite splits them into their own chunks automatically, and the PWA caches them for offline use.
+- **Validate before you process.** Check the extension and size first, then look at the file's first bytes (a `.docx` is a ZIP, `PK\x03\x04`), and give a specific message for each failure. See `src/tools/word-to-pdf/logic.ts` for a worked, tested example.
+- **Rendering untrusted documents:** if you display content from a file the user picked, do it in a `sandbox`ed iframe (no `allow-scripts`) rather than injecting it into the page. See `renderFrame.ts` in the Word to PDF tool.
+- **Worked example:** `src/tools/word-to-pdf/` is a complete tool built on all of the above, with a lazy page, page-level tests that mock the converter, and a pure `logic.ts`.
 
 ## Rules (a test fails if you break them)
 
@@ -150,6 +186,6 @@ Styling is Tailwind, mobile first. Dark mode follows the system through `dark:` 
 - **Keep logic out of components.** Put rules (validation, sorting, formatting) in plain functions in their own file (see `src/tools/todo/logic.ts`) and test them with Vitest. Put reads/writes in a small repository over a `Collection` (see `src/tools/todo/repository.ts`) so you can test them against `createMemoryStorage()`.
 - **Test the page** by rendering it inside `<StorageProvider backend={createMemoryStorage()}>` (see `src/tools/todo/TodoPage.test.tsx`).
 - **Nested screens:** your component can use React Router's `<Routes>` for paths below your `route`; they match relative to it.
-- **A tool that does not store anything** (say, a file converter) simply never calls `useCollection`. Nothing in the shell assumes a tool has data. Work with files via standard browser APIs (`<input type="file">`, `Blob`, `URL.createObjectURL`) inside the tool.
+- **A tool that does not store anything** (say, a file converter) simply never calls `useCollection`. Nothing in the shell assumes a tool has data. For files, use the [file helpers](#file-helpers-for-tools-that-take-or-produce-files).
 - **A tool that needs a library** (a PDF writer, say) adds it with `npm install`; because the page is lazy-loaded, the library only downloads when the tool is opened.
 - **Removing a tool:** delete its folder and its two lines in `registry.ts`. (Its saved data stays in the device's IndexedDB under its id; the storage layer never deletes another tool's data on its own.)

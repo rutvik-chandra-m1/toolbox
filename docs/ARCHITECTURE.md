@@ -24,7 +24,8 @@ Before declaring work done: `npm run build` and `npm test` both pass.
 ```
 src/app/      Shell: layout/header, router, home grid, 404. Knows NO tool by name.
 src/tools/    One folder per tool (src/tools/todo/ ...). registry.ts = the single list of all tools.
-src/shared/   ui/ (components), storage/ (typed interface + Dexie), tools/ (manifest type), lib/ (helpers)
+src/shared/   ui/ (components), storage/ (typed interface + Dexie), files/ (pickFile/saveFile/drop target),
+              tools/ (manifest type), lib/ (helpers)
 android/      Capacitor Android project (committed). Web bundle is synced into it.
 scripts/      generate-icons.mjs, build-apk.mjs
 docs/         ADDING_A_TOOL.md
@@ -40,7 +41,7 @@ docs/         ADDING_A_TOOL.md
 6. **`src/app/` reaches into `src/tools/` only through `registry.ts`.**
 7. **All storage goes through the typed interface in `src/shared/storage`** (`StorageBackend` → `Collection<T>`: `getAll/get/put/remove/removeMany/clear/watch`). **Only `src/shared/storage/` may import Dexie.** Tools use `useCollection(toolId, name)` or `useStorage().collection(toolId, name)`, so Dexie can later be swapped for a cloud backend without touching a tool. Import from the `@/shared/storage` barrel, not its internal files.
 8. A tool's data lives under its own id (`collection(toolId, name)`); tools never read each other's data. Ids and names: letters, digits, `-`, `_` only.
-9. Future tools may be **file-in / file-out** rather than data lists. Keep the shell and shared layer generic: a tool that stores nothing must work with no special casing. (Not built yet; do not build speculatively.)
+9. Tools may be **file-in / file-out** rather than data lists (`word-to-pdf` is one). The shell and shared layer stay generic: a tool that stores nothing works with no special casing. **Pick and save files only through `@/shared/files`** (`pickFile`, `saveFile`, `useDropTarget`): a blob/`<a download>` save silently fails inside the Android WebView, so `saveFile` writes with the Capacitor Filesystem plugin and opens the share sheet there. Load heavy libraries with dynamic `import()` so they cost nothing at startup.
 
 ## Conventions
 
@@ -62,5 +63,7 @@ docs/         ADDING_A_TOOL.md
 ## Android notes
 
 - App id `app.toolbox.personal`; Capacitor 8 needs **JDK 21+** and Android SDK platform 36. `scripts/build-apk.mjs` finds the JDK (`JAVA_HOME` or Android Studio's JBR, so an old `java` first on `PATH` is fine) and the SDK, and prints OS-specific install steps if one is missing.
+- Capacitor plugins in use: `@capacitor/filesystem` and `@capacitor/share` (for `saveFile`; no storage permissions needed, files go to the app cache). Adding a plugin means `npm install` then `npm run android:build` (it runs `cap sync`).
+- `vite.config.ts` aliases jsPDF's unused optional imports (`canvg`, `dompurify`, old `html2canvas`) away; do not remove that, it keeps ~370 KB out of the offline cache and the APK.
 - Re-run `npm run icons` after changing the artwork in `scripts/generate-icons.mjs`; it rewrites the PWA icons and the Android mipmaps.
 - `android/local.properties` and Gradle build output are git-ignored.

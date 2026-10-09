@@ -15,11 +15,17 @@
     "android:check": "node scripts/build-apk.mjs --check",
     "android:sync": "vite build --mode native && cap sync android",
     "android:build": "node scripts/build-apk.mjs",
-    "android:open": "cap open android"
+    "android:open": "cap open android",
+    "sample:docx": "node scripts/make-sample-docx.mjs"
   },
   "dependencies": {
     "@capacitor/core": "^8.5.3",
+    "@capacitor/filesystem": "^8.1.4",
+    "@capacitor/share": "^8.0.3",
     "dexie": "^4.4.6",
+    "docx-preview": "^0.4.1",
+    "html2canvas-pro": "^2.5.2",
+    "jspdf": "^4.2.1",
     "lucide-react": "^1.54.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
@@ -34,6 +40,7 @@
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.2",
+    "docx": "^9.9.0",
     "fake-indexeddb": "^6.2.5",
     "jsdom": "^29.1.1",
     "sharp": "^0.35.5",

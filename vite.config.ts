@@ -51,7 +51,16 @@ export default defineConfig(({ mode }) => {
           ]),
     ],
     resolve: {
-      alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
+      alias: [
+        { find: '@', replacement: fileURLToPath(new URL('./src', import.meta.url)) },
+        // jsPDF lazily imports these three for features this app never calls
+        // (jsPDF.html() and SVG images). Left alone they add ~380 KB of unused
+        // chunks to the offline cache and the APK, including the old,
+        // unmaintained html2canvas. Point it at the maintained fork we use and
+        // stub the other two.
+        { find: /^html2canvas$/, replacement: 'html2canvas-pro' },
+        { find: /^(canvg|dompurify)$/, replacement: fileURLToPath(new URL('./scripts/empty-module.mjs', import.meta.url)) },
+      ],
     },
     build: {
       outDir: native ? 'dist-android' : 'dist',

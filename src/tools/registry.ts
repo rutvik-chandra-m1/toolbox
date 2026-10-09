@@ -1,5 +1,6 @@
 import { defineRegistry } from '@/shared/tools';
 import { todoTool } from './todo';
+import { wordToPdfTool } from './word-to-pdf';
 
 /**
  * THE list of tools in the app. The shell (home grid, router, header) is built
@@ -10,4 +11,5 @@ import { todoTool } from './todo';
  */
 export const tools = defineRegistry([
   todoTool,
+  wordToPdfTool,
 ]);

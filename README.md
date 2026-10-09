@@ -2,9 +2,14 @@
 
 A personal collection of small tools in one app. It runs in the browser on a laptop (installable as a PWA) and on an Android phone (as an APK). Everything works **offline**: there is no backend and no login, and your data stays on the device.
 
-Right now it contains one tool, a **todo list**. The app is built so that more, unrelated tools (a Word-to-PDF converter, say) can be dropped in later without touching the rest. See [docs/ADDING_A_TOOL.md](docs/ADDING_A_TOOL.md).
+It contains two tools so far:
 
-**Stack:** React 19 · TypeScript (strict) · Vite · React Router · Tailwind CSS · Dexie (IndexedDB) · vite-plugin-pwa · Capacitor (Android) · Vitest.
+- **Todo**: a task list with due dates, priorities, filters and sorting.
+- **Word to PDF**: pick a `.docx`, preview it, and get a PDF. Everything happens on the device; nothing is uploaded. [Details below](#word-to-pdf).
+
+The app is built so that more, unrelated tools can be dropped in without touching the rest. See [docs/ADDING_A_TOOL.md](docs/ADDING_A_TOOL.md).
+
+**Stack:** React 19 · TypeScript (strict) · Vite · React Router · Tailwind CSS · Dexie (IndexedDB) · vite-plugin-pwa · Capacitor (Android) · Vitest. Word to PDF adds docx-preview, html2canvas-pro and jsPDF (all loaded only when that tool is used).
 
 ## Run it on your laptop
 
@@ -25,6 +30,7 @@ Open <http://localhost:5173>. Edits reload instantly.
 | `npm test` | Run all tests once (`npm run test:watch` to keep them running) |
 | `npm run typecheck` | TypeScript only |
 | `npm run icons` | Re-render every app icon (PWA, favicon, Android) from `scripts/generate-icons.mjs` |
+| `npm run sample:docx` | Re-create `docs/samples/sample.docx`, a small Word file for trying Word to PDF |
 | `npm run android:build` | Build the Android debug APK (see below) |
 | `npm run android:check` | Report whether the JDK / Android SDK needed for the APK are installed |
 | `npm run android:sync` | Rebuild the web bundle and copy it into the Android project |
@@ -36,6 +42,35 @@ Open <http://localhost:5173>. Edits reload instantly.
 2. Click the install icon in the address bar (or menu → *Install Toolbox*).
 
 The service worker caches the whole app, so it keeps working with no network. To use it day to day without a dev server running, host the `dist/` folder anywhere static (GitHub Pages, Netlify, any web server). It uses hash URLs (`#/todo`) so no server rewrite rules are needed. Browsers only allow installing from `https://` or `localhost`.
+
+## Word to PDF
+
+Open the tool, choose a `.docx` (or drag one onto the page on a laptop), look over the preview, and press **Convert to PDF**. A sample to try is in [`docs/samples/sample.docx`](docs/samples/sample.docx): it has a heading, bold/italic/underlined text, bullet and numbered lists, a table and an image.
+
+- **Laptop / browser:** the PDF downloads, named like the original (`Report.docx` becomes `Report.pdf`). "Download again" saves another copy.
+- **Android app:** a blob download does not work inside the app's WebView, so the PDF is written to the app's cache with the Capacitor Filesystem plugin and the system **share sheet** opens (Share plugin). From there you can open it, save it to Files or Drive, or send it. "Open / Share" brings the sheet back. No storage permissions are needed.
+- **Limits:** `.docx` only, up to 20 MB. The old `.doc` format and password-protected files are not supported, and the tool says so.
+
+### How it works
+
+1. The document is rendered to HTML in a hidden, sandboxed iframe with [docx-preview](https://github.com/VolodymyrBaydalka/docxjs). (An iframe keeps Tailwind's CSS reset from mangling the document, and, because it can't run scripts, a malicious link inside an untrusted file can't do anything.)
+2. It is split into A4-sized pages (`src/tools/word-to-pdf/paginate.ts`). Word files from Google Docs, LibreOffice and most generators contain no page boundaries, so a 5-page document would otherwise arrive as one very tall page. Pages break between paragraphs (never through a line of text), a heading stays with the text after it, long tables break between rows, and headers/footers and margins repeat on every page. The preview shows the same pages the PDF gets.
+3. Each page is drawn to a canvas with [html2canvas-pro](https://github.com/yorickshan/html2canvas-pro) and added to an A4 PDF with [jsPDF](https://github.com/parallax/jsPDF). Letter-size and landscape pages are scaled to fit and centred.
+
+**Why these libraries, not `html2pdf.js`:** `html2pdf.js` is still maintained, but it is a thin wrapper around `html2canvas` 1.4.1 (last released in 2022, and unable to read modern CSS colours) and jsPDF, and it cuts the page into slices by pixel height, which ignores Word's own pages. Using the maintained `html2canvas-pro` fork and jsPDF directly gives page-aware output. jsPDF's optional imports (`canvg`, `dompurify`, the old `html2canvas`) are aliased away in `vite.config.ts` because the app never uses those features; this keeps about 370 KB out of the offline cache and the APK.
+
+### What converts well, and what does not
+
+Converts well: headings and paragraph styles, bold / italic / underline / colours / font sizes, bullet and numbered lists, tables (borders, shading, alignment), images, page margins, explicit page breaks, headers and footers.
+
+Known limits, found by testing:
+
+- **The PDF is made of page images.** It looks like the document, but its text can't be selected, searched or copied, and files are larger than a text PDF (about 0.5 MB per page).
+- **Fonts:** only fonts installed on the device are used, so Calibri or Cambria documents fall back to a similar font and line breaks can shift slightly.
+- **Page numbers in a header/footer** are copied as they were saved, so a re-flowed document can repeat the same number on each page.
+- **A table's header row is not repeated** when the table continues on the next page.
+- **Not rendered or only approximated:** text boxes, WordArt, SmartArt, charts, equations, and complex floating-image layouts.
+- A single paragraph or image taller than a whole page is cut into page-height strips.
 
 ## Build the Android APK
 
@@ -79,7 +114,7 @@ src/
   app/        Shell: layout + header, router, home screen, 404. Knows no tool by name.
   tools/      One folder per tool (todo/ today). registry.ts is the ONE list of tools.
   shared/     Reusable code: ui/ (components), storage/ (typed interface + Dexie),
-              tools/ (the manifest type), lib/ (helpers)
+              files/ (pickFile, saveFile, drop target), tools/ (the manifest type), lib/ (helpers)
 android/      Capacitor's Android project (generated once, committed)
 scripts/      generate-icons.mjs, build-apk.mjs
 docs/         ADDING_A_TOOL.md
@@ -89,7 +124,7 @@ The rules that keep it extensible (tools never import each other, only `shared/s
 
 ## Testing
 
-`npm test` runs about 110 tests: the todo logic and repository, both storage backends against one shared contract suite, persistence across a simulated restart, the generated home screen and routes, the full todo UI, and the architecture rules.
+`npm test` runs about 220 tests: the todo logic and repository, both storage backends against one shared contract suite, persistence across a simulated restart, the generated home screen and routes, the full todo UI, the file helpers (including the browser-versus-Android branching in `saveFile`), Word to PDF's validation and page flow, and the architecture rules. The real document rendering and PDF output need a real browser, so they are checked by converting `docs/samples/sample.docx` in the running app rather than in unit tests.
 
 ## Troubleshooting
 
