@@ -1,4 +1,5 @@
 import Dexie, { liveQuery, type Table } from 'dexie';
+import { collectionKey } from './keys';
 import type { Collection, Entity, StorageBackend } from './types';
 
 /** One row per stored record. `data` is the tool's own object, stored untouched. */
@@ -25,7 +26,7 @@ export function createDexieStorage(databaseName = 'toolbox'): StorageBackend {
 
   return {
     collection<T extends Entity>(toolId: string, name: string): Collection<T> {
-      const key = `${toolId}/${name}`;
+      const key = collectionKey(toolId, name);
       const readAll = async (): Promise<T[]> => {
         const rows = await db.records.where('collection').equals(key).toArray();
         return rows.map((row) => row.data as T);

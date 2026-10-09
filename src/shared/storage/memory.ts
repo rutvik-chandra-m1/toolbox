@@ -1,3 +1,4 @@
+import { collectionKey } from './keys';
 import type { Collection, Entity, StorageBackend } from './types';
 
 /**
@@ -23,7 +24,7 @@ export function createMemoryStorage(): StorageBackend {
 
   return {
     collection<T extends Entity>(toolId: string, name: string): Collection<T> {
-      const key = `${toolId}/${name}`;
+      const key = collectionKey(toolId, name);
       const snapshot = (): T[] => [...storeFor(key).values()].map((v) => structuredClone(v) as T);
 
       return {

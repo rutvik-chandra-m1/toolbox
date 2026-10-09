@@ -1,4 +1,5 @@
 import { defineRegistry } from '@/shared/tools';
+import { todoTool } from './todo';
 
 /**
  * THE list of tools in the app. The shell (home grid, router, header) is built
@@ -7,4 +8,6 @@ import { defineRegistry } from '@/shared/tools';
  * To add a tool: create `src/tools/<id>/` (see docs/ADDING_A_TOOL.md), then add
  * its manifest here: an `import` line and one entry in the array.
  */
-export const tools = defineRegistry([]);
+export const tools = defineRegistry([
+  todoTool,
+]);
