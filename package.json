@@ -12,6 +12,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "icons": "node scripts/generate-icons.mjs",
+    "android:check": "node scripts/build-apk.mjs --check",
+    "android:sync": "vite build --mode native && cap sync android",
     "android:build": "node scripts/build-apk.mjs",
     "android:open": "cap open android"
   },

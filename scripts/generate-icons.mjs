@@ -1,7 +1,7 @@
 // Renders every app icon (PWA, favicon, Android launcher) from one glyph.
 // Run with `npm run icons`; the generated files are committed, so this is only
 // needed when the artwork below changes.
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, readdir, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import sharp from 'sharp';
@@ -67,5 +67,26 @@ if (existsSync(res)) {
     `<?xml version="1.0" encoding="utf-8"?>\n<resources>\n    <color name="ic_launcher_background">${BRAND}</color>\n</resources>\n`,
   );
   console.log('Android launcher icons written.');
+
+  // Splash screens (shown on Android 11 and older; newer versions use the launcher icon):
+  // the app icon centred on a plain background, replacing Capacitor's default logo.
+  // Existing files are rewritten at their current size.
+  for (const entry of await readdir(res)) {
+    const file = join(res, entry, 'splash.png');
+    if (!entry.startsWith('drawable') || !existsSync(file)) continue;
+    const { width, height } = await sharp(file).metadata();
+    const icon = await sharp(Buffer.from(rounded))
+      .resize(Math.round(Math.min(width, height) * 0.28))
+      .png()
+      .toBuffer();
+    const splash = await sharp({
+      create: { width, height, channels: 4, background: '#f8fafc' },
+    })
+      .composite([{ input: icon, gravity: 'centre' }])
+      .png()
+      .toBuffer();
+    await writeFile(file, splash);
+  }
+  console.log('Android splash screens written.');
 }
 console.log('Icons written.');
