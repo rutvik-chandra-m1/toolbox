@@ -32,8 +32,8 @@ export function TodoToolbar({
       <div className="flex flex-wrap items-end gap-3">
         <Field label="Sort by" className="min-w-44 flex-1">
           <Select value={sort} onChange={(e) => onSortChange(e.target.value as TodoSort)}>
-            <option value="created">Created date (newest first)</option>
-            <option value="due">Due date (soonest first)</option>
+            <option value="created">Created date</option>
+            <option value="due">Due date</option>
           </Select>
         </Field>
         <Button variant="ghost" disabled={counts.completed === 0} onClick={onClearCompleted}>
