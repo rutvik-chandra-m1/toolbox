@@ -63,14 +63,18 @@ Open the tool, choose a `.docx` (or drag one onto the page on a laptop), look ov
 
 Converts well: headings and paragraph styles, bold / italic / underline / colours / font sizes, bullet and numbered lists, tables (borders, shading, alignment), images, page margins, explicit page breaks, headers and footers.
 
-Known limits, found by testing:
+**Seen in testing** (two generated documents: one with an explicit page break, one 6 pages long with no page breaks and a 44-row table; checked in a desktop browser and on an Android emulator):
 
 - **The PDF is made of page images.** It looks like the document, but its text can't be selected, searched or copied, and files are larger than a text PDF (about 0.5 MB per page).
-- **Fonts:** only fonts installed on the device are used, so Calibri or Cambria documents fall back to a similar font and line breaks can shift slightly.
-- **Page numbers in a header/footer** are copied as they were saved, so a re-flowed document can repeat the same number on each page.
 - **A table's header row is not repeated** when the table continues on the next page.
-- **Not rendered or only approximated:** text boxes, WordArt, SmartArt, charts, equations, and complex floating-image layouts.
-- A single paragraph or image taller than a whole page is cut into page-height strips.
+
+**Expected from how it works, but not tested** (no real-world Word or Google Docs files were available to try):
+
+- **Fonts:** only fonts installed on the device are used, so a document in Calibri or Cambria falls back to a similar font and line breaks can shift slightly.
+- **Page numbers in a header/footer** are copied as saved, so a re-flowed document can repeat the same number on each page.
+- **Not rendered or only approximated:** text boxes, WordArt, SmartArt, charts, equations, and complex floating-image layouts (limits of docx-preview).
+- **US Letter and landscape pages** are scaled to fit and centred on A4. This is implemented but was not run against such a file.
+- A single paragraph or image taller than a whole page is cut into page-height strips (implemented, not exercised).
 
 ## Build the Android APK
 
