@@ -7,7 +7,6 @@ release/
 .DS_Store
 .vite/
 coverage/
-.claude/settings.local.json
 
 # Android / Gradle (the android/ project itself is committed)
 android/local.properties

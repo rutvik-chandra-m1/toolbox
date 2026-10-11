@@ -2,6 +2,10 @@
 
 A personal collection of small tools in one app. It runs in the browser on a laptop (installable as a PWA) and on an Android phone (as an APK). Everything works **offline**: there is no backend and no login, and your data stays on the device.
 
+[![Toolbox demo video. Click to watch.](docs/media/toolbox-demo.jpg)](docs/media/toolbox-demo.mp4)
+
+*A 22-second demo of the app: adding a todo and converting a Word file to PDF. Click the image to watch it.*
+
 It contains two tools so far:
 
 - **Todo**: a task list with due dates, priorities, filters and sorting.
