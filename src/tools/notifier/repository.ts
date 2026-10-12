@@ -2,7 +2,7 @@ import { createId } from '@/shared/lib/id';
 import type { NotificationService } from '@/shared/notifications';
 import type { Collection } from '@/shared/storage';
 import { validateDraft } from './logic';
-import { NOTIFICATION_TITLE, ROUTE, type Reminder, type ReminderDraft } from './types';
+import { ROUTE, type Reminder, type ReminderDraft } from './types';
 
 export interface ReminderDeps {
   now?: () => number;
@@ -15,8 +15,8 @@ export function createReminderRepository(
   notifications: NotificationService,
   { now = Date.now, newId = createId }: ReminderDeps = {},
 ) {
-  const schedule = (r: Reminder) =>
-    notifications.schedule(r.id, NOTIFICATION_TITLE, r.message, new Date(r.at), { route: ROUTE });
+  // The message is the notification's title (shown large and bold); there is no separate heading.
+  const schedule = (r: Reminder) => notifications.schedule(r.id, r.message, '', new Date(r.at), { route: ROUTE });
 
   function valid(draft: ReminderDraft) {
     const result = validateDraft(draft, now());

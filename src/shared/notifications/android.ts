@@ -1,6 +1,8 @@
 import type { NotificationPermission, NotificationService, ScheduleOptions } from './types';
 
 const CHANNEL_ID = 'reminders';
+/** Roughly what fits on one title line on a phone. */
+const LONG_TITLE = 40;
 
 /** Android needs a 32-bit integer id; derive a stable one from the string id (FNV-1a). */
 export function toNativeId(id: string): number {
@@ -49,13 +51,16 @@ export function createAndroidNotifications(): NotificationService {
       return toPermission((await (await plugin()).ln.requestPermissions()).display);
     },
     async schedule(id: string, title: string, body: string, at: Date, options: ScheduleOptions = {}) {
+      // Android cuts a title to one line, so a long title-only notification goes in the
+      // (expandable) text instead, with no heading, rather than being shown twice.
+      const long = !body && title.length > LONG_TITLE;
       await (await plugin()).ln.schedule({
         notifications: [
           {
             id: toNativeId(id),
-            title,
-            body,
-            largeBody: body, // expanded view shows the whole message
+            title: long ? '' : title,
+            body: long ? title : body,
+            largeBody: long ? title : body || undefined, // expanded view shows the whole text
             channelId: CHANNEL_ID,
             schedule: { at, allowWhileIdle: true },
             extra: { id, route: options.route },

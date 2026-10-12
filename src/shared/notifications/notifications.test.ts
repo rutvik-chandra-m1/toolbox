@@ -81,6 +81,14 @@ describe('Android implementation', () => {
     });
   });
 
+  it('title-only: a short text is the (large) title; a long one becomes expandable text with no heading', async () => {
+    await android().schedule('short', 'ask for dinner', '', new Date(2030, 0, 1));
+    await android().schedule('long', MESSAGE, '', new Date(2030, 0, 1));
+    const [short, long] = plugin.schedule.mock.calls.map((c) => (c as unknown as [{ notifications: Record<string, unknown>[] }])[0].notifications[0]);
+    expect(short).toMatchObject({ title: 'ask for dinner', body: '', largeBody: undefined });
+    expect(long).toMatchObject({ title: '', body: MESSAGE, largeBody: MESSAGE });
+  });
+
   it('creates a high-importance channel and a tap handler once', async () => {
     const service = android();
     await service.schedule('a', 'T', 'b', new Date());

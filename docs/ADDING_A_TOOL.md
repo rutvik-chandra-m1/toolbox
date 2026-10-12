@@ -189,7 +189,7 @@ await notifications.cancel('my-tool-123');
 | Method | What it does |
 | --- | --- |
 | `requestPermission()` / `checkPermission()` | `'granted' | 'denied' | 'prompt' | 'unsupported'`. Ask the first time it is needed (for example on the first save), and show a banner when it is denied. |
-| `schedule(id, title, body, date, { route })` | Shows `body` exactly as given at `date`. Re-using an id replaces the earlier one. `route` is the screen tapping the notification opens. |
+| `schedule(id, title, body, date, { route })` | Shows `title` (large, bold) and `body` exactly as given at `date`. Pass `''` as `body` for a single big line of text (Notifier does). On Android a title longer than about 40 characters is then shown as expandable body text instead, since Android cuts titles to one line. Re-using an id replaces the earlier one. `route` is the screen tapping the notification opens. |
 | `cancel(id)` | Cancels it. |
 | `listPending()` | What is still scheduled. |
 | `canScheduleExact()` / `openExactAlarmSettings()` | Android 12+: whether exact timing is allowed, and a shortcut to the "Alarms & reminders" setting. Always true / no-op in a browser. |

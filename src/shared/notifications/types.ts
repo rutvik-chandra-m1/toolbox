@@ -27,7 +27,10 @@ export interface NotificationService {
   checkPermission(): Promise<NotificationPermission>;
   /** Asks the user if they have not answered yet; returns the result. */
   requestPermission(): Promise<NotificationPermission>;
-  /** Shows `body` (unchanged) under `title` at `at`. Scheduling an id again replaces it. */
+  /**
+   * Shows `title` (large, bold) and `body` (unchanged; may be '' for a title-only notification) at `at`.
+   * Scheduling an id again replaces it.
+   */
   schedule(id: string, title: string, body: string, at: Date, options?: ScheduleOptions): Promise<void>;
   cancel(id: string): Promise<void>;
   listPending(): Promise<PendingNotification[]>;

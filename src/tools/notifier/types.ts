@@ -3,11 +3,10 @@ import type { Entity } from '@/shared/storage';
 export const TOOL_ID = 'notifier';
 export const COLLECTION = 'reminders';
 export const ROUTE = '/notifier';
-export const NOTIFICATION_TITLE = 'Reminder';
 
 export interface Reminder extends Entity {
   id: string;
-  /** Exactly what the user typed: shown as the notification body unchanged. */
+  /** Exactly what the user typed: the notification's only text (its title), unchanged. */
   message: string;
   /** When to notify, epoch milliseconds. */
   at: number;

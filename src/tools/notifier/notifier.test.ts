@@ -64,7 +64,7 @@ describe('sorting into Upcoming and Past', () => {
 function setup() {
   const calls: string[] = [];
   const notifications = {
-    schedule: vi.fn(async (id: string, _t: string, body: string) => void calls.push(`schedule ${id} ${body}`)),
+    schedule: vi.fn(async (id: string, title: string) => void calls.push(`schedule ${id} ${title}`)),
     cancel: vi.fn(async (id: string) => void calls.push(`cancel ${id}`)),
   } as unknown as NotificationService & { schedule: ReturnType<typeof vi.fn>; cancel: ReturnType<typeof vi.fn> };
   const collection = createMemoryStorage().collection<Reminder>('notifier', 'reminders');
@@ -74,12 +74,12 @@ function setup() {
 }
 
 describe('reminder repository', () => {
-  it('saving stores the reminder and schedules "Reminder" with the exact message', async () => {
+  it('saving stores the reminder and schedules the exact message as the only text', async () => {
     const { repo, notifications, collection } = setup();
     const saved = await repo.add(draft('Ask teacher about AICTE points', '2030-06-15', '11:00'));
 
     const at = new Date(2030, 5, 15, 11, 0);
-    expect(notifications.schedule).toHaveBeenCalledWith('id1', 'Reminder', 'Ask teacher about AICTE points', at, {
+    expect(notifications.schedule).toHaveBeenCalledWith('id1', 'Ask teacher about AICTE points', '', at, {
       route: '/notifier',
     });
     expect(await collection.getAll()).toEqual([saved]);

@@ -6,7 +6,7 @@ import { Button, ConfirmDialog, Dialog, EmptyState, IconButton, PageContainer, S
 import { defaultDraft, formatWhen, pastStatus, splitReminders, toDraft } from './logic';
 import { createReminderRepository } from './repository';
 import { ReminderForm } from './ReminderForm';
-import { COLLECTION, NOTIFICATION_TITLE, ROUTE, TOOL_ID, type Reminder } from './types';
+import { COLLECTION, ROUTE, TOOL_ID, type Reminder } from './types';
 
 const TEST_DELAY_MS = 10_000;
 
@@ -77,8 +77,8 @@ export default function NotifierPage() {
     await ensurePermission();
     await notifications.schedule(
       'notifier-test',
-      NOTIFICATION_TITLE,
       'This is a test notification from Toolbox.',
+      '',
       new Date(Date.now() + TEST_DELAY_MS),
       { route: ROUTE },
     );
