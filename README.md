@@ -10,6 +10,7 @@ It contains two tools so far:
 
 - **Todo**: a task list with due dates, priorities, filters and sorting.
 - **Word to PDF**: pick a `.docx`, preview it, and get a PDF. Everything happens on the device; nothing is uploaded. [Details below](#word-to-pdf).
+- **Notifier**: type a reminder, pick a date and time, and get a notification with exactly that text. [Details below](#notifier).
 
 The app is built so that more, unrelated tools can be dropped in without touching the rest. See [docs/ADDING_A_TOOL.md](docs/ADDING_A_TOOL.md).
 
@@ -80,6 +81,34 @@ Converts well: headings and paragraph styles, bold / italic / underline / colour
 - **US Letter and landscape pages** are scaled to fit and centred on A4. This is implemented but was not run against such a file.
 - A single paragraph or image taller than a whole page is cut into page-height strips (implemented, not exercised).
 
+## Notifier
+
+Type a message (for example *Ask teacher about AICTE points*), pick a date and a time, and press **Save reminder**. At that minute the device shows a notification titled **Reminder** whose text is your message exactly as typed. Tapping it opens the app on the Notifier screen. Reminders are listed under **Upcoming** and **Past**; each can be edited (the notification is re-scheduled) or deleted (it is cancelled), and **Clear past reminders** removes the old ones. **Test notification** sends one in 10 seconds.
+
+- **Android app:** Android itself delivers the notification from an exact alarm, so it arrives with the app closed and the phone locked. Notification permission is asked for the first time you save a reminder. Reminders survive a restart of the phone (the plugin re-arms them at boot), and the app also re-schedules every upcoming reminder each time it opens.
+- **Laptop (browser / installed PWA):** browsers cannot wake a closed web app, so **reminders only appear while the app is open** (a tab, or the installed app window, minimised is fine). Each time the app opens it re-arms the upcoming reminders from storage; anything that came due while it was closed is listed as **Missed**. The page says this too.
+
+### Phone settings for reliable reminders
+
+1. **Notifications: allowed.** Tap *Allow* when asked. If you tapped *Don't allow*: Settings > Apps > Toolbox > Notifications > on. The app shows a banner while they are off.
+2. **Alarms & reminders: allowed.** On Android 13 and newer this is granted automatically. On Android 12, if the app shows "Reminders may arrive a few minutes late", tap *Open setting* and turn it on.
+3. **Battery: Unrestricted.** Settings > Apps > Toolbox > Battery > *Unrestricted*. On Xiaomi, Oppo, Vivo, Realme, OnePlus, Samsung and similar phones also turn on **Autostart** / allow background activity for Toolbox, and lock it in the recent-apps screen if your phone offers that. These phones can otherwise stop the app's alarms.
+4. **Do not "Force stop" the app.** Swiping it away from recent apps is fine; *Force stop* in Settings cancels its alarms until you open it again (opening it re-schedules them).
+5. **Do Not Disturb** hides notifications unless Toolbox is allowed to break through.
+
+### Test it on your phone with the app fully closed
+
+1. Install the new APK and open **Toolbox > Notifier**.
+2. Type a message, set the time to 2 or 3 minutes from now, and press **Save reminder**. Tap **Allow** on the permission question.
+3. Close the app completely: open the recent-apps screen and swipe Toolbox away. Lock the phone.
+4. Wait. At that minute the notification appears on the lock screen with your exact text. Tap it: the app opens on Notifier, and the reminder is under **Past** marked **Sent**.
+
+For a quicker check, press **Test notification**, then close the app and lock the phone: it arrives 10 seconds later.
+
+### How it works
+
+`src/shared/notifications` is a reusable notification service (see [docs/ADDING_A_TOOL.md](docs/ADDING_A_TOOL.md)). On Android it uses `@capacitor/local-notifications` with exact, allow-while-idle alarms on a high-importance channel; in a browser it uses the Web Notifications API with in-page timers. The platform is picked at runtime. Reminders are stored through `src/shared/storage` like the todo list. The tool's manifest has an `onAppStart` hook, so the reminders are re-armed every time the app opens, whatever screen it opens on.
+
 ## Build the Android APK
 
 ```bash
@@ -122,7 +151,8 @@ src/
   app/        Shell: layout + header, router, home screen, 404. Knows no tool by name.
   tools/      One folder per tool (todo/ today). registry.ts is the ONE list of tools.
   shared/     Reusable code: ui/ (components), storage/ (typed interface + Dexie),
-              files/ (pickFile, saveFile, drop target), tools/ (the manifest type), lib/ (helpers)
+              files/ (pickFile, saveFile, drop target), notifications/ (schedule notifications),
+              tools/ (the manifest type), lib/ (helpers)
 android/      Capacitor's Android project (generated once, committed)
 scripts/      generate-icons.mjs, build-apk.mjs
 docs/         ADDING_A_TOOL.md
@@ -132,7 +162,7 @@ The rules that keep it extensible (tools never import each other, only `shared/s
 
 ## Testing
 
-`npm test` runs about 220 tests: the todo logic and repository, both storage backends against one shared contract suite, persistence across a simulated restart, the generated home screen and routes, the full todo UI, the file helpers (including the browser-versus-Android branching in `saveFile`), Word to PDF's validation and page flow, and the architecture rules. The real document rendering and PDF output need a real browser, so they are checked by converting `docs/samples/sample.docx` in the running app rather than in unit tests.
+`npm test` runs about 245 tests: the todo logic and repository, the notification service (Android/browser branching with Capacitor mocked, exact timing, long delays) and the Notifier's validation, Upcoming/Past sorting and edit/delete scheduling, both storage backends against one shared contract suite, persistence across a simulated restart, the generated home screen and routes, the full todo UI, the file helpers (including the browser-versus-Android branching in `saveFile`), Word to PDF's validation and page flow, and the architecture rules. The real document rendering and PDF output need a real browser, so they are checked by converting `docs/samples/sample.docx` in the running app rather than in unit tests.
 
 ## Troubleshooting
 

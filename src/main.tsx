@@ -2,6 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from '@/app/App';
 import { requestPersistentStorage } from '@/shared/storage';
+import { tools } from '@/tools/registry';
 import './index.css';
 
 const container = document.getElementById('root');
@@ -14,3 +15,11 @@ createRoot(container).render(
 );
 
 void requestPersistentStorage();
+
+for (const tool of tools) {
+  try {
+    tool.onAppStart?.();
+  } catch (error) {
+    console.error(`${tool.id}: start-up task failed`, error); // one tool must not stop the app
+  }
+}

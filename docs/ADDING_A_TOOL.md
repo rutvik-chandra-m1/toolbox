@@ -36,7 +36,7 @@ export const notesTool: ToolManifest = {
 };
 ```
 
-The manifest has exactly these six fields:
+The manifest has these six fields, plus one optional one:
 
 | Field | Meaning |
 | --- | --- |
@@ -46,6 +46,7 @@ The manifest has exactly these six fields:
 | `icon` | Icon component |
 | `route` | Where the tool lives, e.g. `/notes`. Sub-paths like `/notes/anything` also go to your component, so a tool can have internal routes |
 | `component` | The root component, wrapped in `React.lazy` and **default-exported** from its file |
+| `onAppStart` | *Optional.* Runs once every time the app opens, whatever screen it opens on, e.g. to re-arm reminders. Keep it cheap: `import()` the real work inside it. See `src/tools/notifier/index.ts` |
 
 ### 3. Write the page: `src/tools/notes/NotesPage.tsx`
 
@@ -130,6 +131,7 @@ That is the whole job. The Android app and the PWA pick the tool up on their nex
 | Buttons, dialogs, form fields, empty state, segmented control, error boundary, page width | `@/shared/ui` (`Button`, `IconButton`, `ConfirmDialog`, `Dialog`, `Field`, `Input`, `Select`, `Segmented`, `EmptyState`, `Spinner`, `PageContainer`, `ErrorBoundary`) |
 | Persisting data | `@/shared/storage`: `useCollection(toolId, name)` in components, or `useStorage().collection(toolId, name)` anywhere you have React context |
 | Letting the user **pick a file**, **give a file back**, or drop one on the page | `@/shared/files`: `pickFile(acceptedTypes)`, `saveFile(blob, filename)`, `useDropTarget(...)`. See [File helpers](#file-helpers-for-tools-that-take-or-produce-files) below |
+| **Notifications at a set time** (reminders, timers) | `@/shared/notifications`: `getNotificationService()`. See [Notification service](#notification-service) below |
 | Showing a file size / making a safe file name | `formatFileSize(bytes)`, `sanitizeFilename(name)` from `@/shared/files` |
 | Unique ids | `createId()` from `@/shared/lib/id` |
 | Calendar dates | `@/shared/lib/dates` (local `YYYY-MM-DD` helpers) |
@@ -170,6 +172,36 @@ Things to know:
 - **Validate before you process.** Check the extension and size first, then look at the file's first bytes (a `.docx` is a ZIP, `PK\x03\x04`), and give a specific message for each failure. See `src/tools/word-to-pdf/logic.ts` for a worked, tested example.
 - **Rendering untrusted documents:** if you display content from a file the user picked, do it in a `sandbox`ed iframe (no `allow-scripts`) rather than injecting it into the page. See `renderFrame.ts` in the Word to PDF tool.
 - **Worked example:** `src/tools/word-to-pdf/` is a complete tool built on all of the above, with a lazy page, page-level tests that mock the converter, and a pure `logic.ts`.
+
+## Notification service
+
+`@/shared/notifications` shows a notification at a chosen time on both platforms; the Notifier tool is built on it.
+
+```ts
+import { getNotificationService } from '@/shared/notifications';
+
+const notifications = getNotificationService(); // Android or browser, picked at runtime
+if ((await notifications.checkPermission()) === 'prompt') await notifications.requestPermission();
+await notifications.schedule('my-tool-123', 'Reminder', 'Water the plants', new Date(2030, 0, 1, 9, 0), { route: '/my-tool' });
+await notifications.cancel('my-tool-123');
+```
+
+| Method | What it does |
+| --- | --- |
+| `requestPermission()` / `checkPermission()` | `'granted' | 'denied' | 'prompt' | 'unsupported'`. Ask the first time it is needed (for example on the first save), and show a banner when it is denied. |
+| `schedule(id, title, body, date, { route })` | Shows `body` exactly as given at `date`. Re-using an id replaces the earlier one. `route` is the screen tapping the notification opens. |
+| `cancel(id)` | Cancels it. |
+| `listPending()` | What is still scheduled. |
+| `canScheduleExact()` / `openExactAlarmSettings()` | Android 12+: whether exact timing is allowed, and a shortcut to the "Alarms & reminders" setting. Always true / no-op in a browser. |
+| `firesWhenClosed` | `true` on Android (the OS delivers it, app closed or phone locked). `false` in a browser: timers only run while the app is open, so tell the user. |
+| `onDelivered(listener)` | Browser only: called when the app itself showed a notification (useful to tell "sent" from "missed"). |
+
+Things to know:
+
+- **Use string ids prefixed with your tool id** (`notifier-...`): every tool shares the one service. On Android the id is hashed to the 32-bit number Android needs.
+- **Store what you schedule in your own collection, and re-schedule it from `onAppStart`** (see `src/tools/notifier/startup.ts`). Browser timers die when the page closes, and Android loses alarms if the app is force-stopped. The Android plugin re-arms alarms after a phone restart on its own.
+- **Never resolve a promise with a Capacitor plugin object** (`return LocalNotifications` from an `async` function): plugins are proxies that answer `.then`, so the promise never settles. Wrap it (`return { ln: LocalNotifications }`). This bit the first Android build of this service.
+- Android permissions (`POST_NOTIFICATIONS`, `SCHEDULE_EXACT_ALARM`, `USE_EXACT_ALARM`, `RECEIVE_BOOT_COMPLETED`) and the status-bar icon (`res/drawable/ic_stat_notify.xml`) are already set up.
 
 ## Rules (a test fails if you break them)
 

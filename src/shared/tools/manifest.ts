@@ -17,6 +17,11 @@ export interface ToolManifest {
   route: string;
   /** The tool's root component, code-split with `React.lazy(() => import('./Page'))`. */
   component: LazyExoticComponent<ComponentType>;
+  /**
+   * Optional: runs once each time the app opens, whichever screen is shown
+   * (e.g. to re-arm reminders). Keep it cheap: dynamic-import anything heavy.
+   */
+  onAppStart?: () => void;
 }
 
 const ID_PATTERN = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
