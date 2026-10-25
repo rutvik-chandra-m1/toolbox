@@ -8,11 +8,18 @@ import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Color;
+import android.media.AudioAttributes;
 import android.net.Uri;
 import android.os.Build;
 import androidx.core.app.NotificationCompat;
 import androidx.core.app.NotificationManagerCompat;
+import androidx.core.app.Person;
+import androidx.core.content.pm.ShortcutInfoCompat;
+import androidx.core.content.pm.ShortcutManagerCompat;
+import androidx.core.graphics.drawable.IconCompat;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -189,24 +196,72 @@ final class RichNotifier {
         return android.R.drawable.ic_popup_reminder;
     }
 
+    /** Uri of a sound file in res/raw, or null if there is none (the channel then keeps the default sound). */
+    private static Uri soundUri(Context context, String name) {
+        if (name.isEmpty()) return null;
+        int id = context.getResources().getIdentifier(name, "raw", context.getPackageName());
+        return id == 0 ? null : Uri.parse("android.resource://" + context.getPackageName() + "/" + id);
+    }
+
+    /** The tool's own logo (a PNG in res/drawable-nodpi), shown instead of the app icon. */
+    private static Bitmap logo(Context context, String name) {
+        if (name.isEmpty()) return null;
+        int id = context.getResources().getIdentifier(name, "drawable", context.getPackageName());
+        return id == 0 ? null : BitmapFactory.decodeResource(context.getResources(), id);
+    }
+
+    private static void applyConversation(Context context, NotificationCompat.Builder builder, JSONObject entry, Bitmap logo) {
+        String channelId = entry.optString("channelId");
+        IconCompat icon = IconCompat.createWithBitmap(logo);
+        Person sender = new Person.Builder().setName(entry.optString("title")).setIcon(icon).setKey(channelId).setImportant(true).build();
+        String shortcutId = "conversation-" + channelId;
+        try {
+            // Android only treats a notification as a conversation when it is tied to a long-lived shortcut for the same person.
+            ShortcutManagerCompat.pushDynamicShortcut(context, new ShortcutInfoCompat.Builder(context, shortcutId)
+                    .setLongLived(true)
+                    .setShortLabel(entry.optString("channelName"))
+                    .setIcon(icon)
+                    .setPerson(new Person.Builder().setName(entry.optString("channelName")).setIcon(icon).setKey(channelId).build())
+                    .setIntent(new Intent(context, MainActivity.class).setAction(Intent.ACTION_MAIN))
+                    .build());
+            builder.setShortcutId(shortcutId);
+        } catch (RuntimeException ignored) {
+            // without the shortcut it is still a notification with the logo as its large icon
+        }
+        builder.addPerson(sender);
+        builder.setStyle(new NotificationCompat.MessagingStyle(new Person.Builder().setName("You").build())
+                .addMessage(entry.optString("body"), System.currentTimeMillis(), sender));
+    }
+
     @SuppressLint("MissingPermission") // without the notification permission the system simply drops it
     private static void show(Context context, JSONObject entry, boolean quiet) {
         String key = key(entry);
         String route = entry.optString("route", "");
         boolean sticky = entry.optBoolean("sticky");
 
+        Uri sound = soundUri(context, entry.optString("sound"));
         if (Build.VERSION.SDK_INT >= 26) {
+            NotificationManager manager = context.getSystemService(NotificationManager.class);
+            // A channel's sound cannot be changed after it exists, so a new sound comes with a new channel id.
+            JSONArray replaces = entry.optJSONArray("replaces");
+            for (int i = 0; replaces != null && i < replaces.length(); i++) manager.deleteNotificationChannel(replaces.optString(i));
+
             NotificationChannel channel = new NotificationChannel(
                     entry.optString("channelId"), entry.optString("channelName"), NotificationManager.IMPORTANCE_HIGH);
             channel.setLockscreenVisibility(Notification.VISIBILITY_PUBLIC);
-            context.getSystemService(NotificationManager.class).createNotificationChannel(channel);
+            if (sound != null) {
+                channel.setSound(sound, new AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_NOTIFICATION)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                        .build());
+            }
+            manager.createNotificationChannel(channel);
         }
 
         NotificationCompat.Builder builder = new NotificationCompat.Builder(context, entry.optString("channelId"))
                 .setSmallIcon(iconResource(context, entry.optString("icon")))
                 .setContentTitle(entry.optString("title"))
                 .setContentText(entry.optString("body"))
-                .setStyle(new NotificationCompat.BigTextStyle().bigText(entry.optString("body")))
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .setCategory(NotificationCompat.CATEGORY_REMINDER)
                 .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
@@ -215,6 +270,17 @@ final class RichNotifier {
                 .setSilent(quiet) // a re-post after a swipe must not buzz again
                 .setContentIntent(open(context, key, route, "tap"))
                 .setDeleteIntent(broadcast(context, ACTION_DELETED, key, 0));
+
+        Bitmap logo = logo(context, entry.optString("logo"));
+        if (logo != null) {
+            builder.setLargeIcon(logo);
+            // Recent Android versions put the app's own icon next to every notification. The only picture an app may put
+            // there itself is a conversation's avatar, so a notification with a logo is posted as a one-person conversation.
+            applyConversation(context, builder, entry, logo);
+        } else {
+            builder.setStyle(new NotificationCompat.BigTextStyle().bigText(entry.optString("body")));
+        }
+        if (sound != null && Build.VERSION.SDK_INT < 26) builder.setSound(sound); // before channels, the sound belongs to the notification
 
         String color = entry.optString("color");
         if (!color.isEmpty()) {

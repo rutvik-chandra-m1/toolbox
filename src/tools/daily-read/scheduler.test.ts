@@ -43,7 +43,7 @@ function setup(now = NOW) {
       pending.set(id, { id, title, body, at, options });
     }),
     cancel: vi.fn(async (id: string) => void pending.delete(id)),
-    listPending: async () => [...pending.values()].map(({ id, title, body, at }) => ({ id, title, body, at })),
+    listPending: async () => [...pending.values()].map(({ id, title, body, at, options }) => ({ id, title, body, at, channelId: options.channel?.id })),
     canScheduleExact: async () => true,
     openExactAlarmSettings: async () => {},
     onDelivered: () => () => {},
@@ -86,13 +86,30 @@ describe('the daily lesson notification', () => {
       route: '/daily-read/lesson/a',
       slot: 'dailyread-lesson',
       sticky: true,
-      channel: { id: 'daily-read', name: 'Daily Read', icon: 'ic_stat_book', color: '#d97706' },
+      channel: {
+        id: 'daily-read-chime',
+        name: 'Daily Read',
+        icon: 'ic_stat_book',
+        color: '#d97706',
+        logo: 'daily_read_logo', // its own logo instead of the app icon
+        sound: 'daily_read_chime', // its own, clearly audible sound
+        replaces: ['daily-read'], // the first channel (default sound) is removed
+      },
     });
     expect(options.actions).toEqual([
       { id: 'read', title: 'Read now', kind: 'open' },
       { id: 'snooze', title: 'Snooze 1 hr', kind: 'snooze', minutes: 60 },
       { id: 'skip', title: 'Not today', kind: 'dismiss' },
     ]);
+  });
+
+  it('schedules again what an older version had put on its previous channel, even if text and time are the same', async () => {
+    const { sync, pending } = setup();
+    await sync();
+    const key = lessonKey('2030-06-16');
+    pending.set(key, { ...pending.get(key)!, options: { ...pending.get(key)!.options, channel: { id: 'daily-read', name: 'Daily Read' } } });
+    await sync();
+    expect(pending.get(key)?.options.channel?.id).toBe('daily-read-chime');
   });
 
   it('follows the time setting, and re-scheduling is a no-op when nothing changed', async () => {
@@ -193,7 +210,7 @@ describe('recall notifications', () => {
     expect(day18?.options).toMatchObject({ route: '/daily-read/recall', slot: 'dailyread-recall' });
     expect(day18?.options.sticky).toBeUndefined(); // a normal notification: swipe clears it
     expect(day18?.options.actions).toBeUndefined();
-    expect(day18?.options.channel).toMatchObject({ id: 'daily-read', icon: 'ic_stat_book' }); // same channel and icon
+    expect(day18?.options.channel).toMatchObject({ id: 'daily-read-chime', icon: 'ic_stat_book', logo: 'daily_read_logo' }); // same channel, icon and logo
     // Still unanswered later, so it keeps coming (overdue recalls stay due).
     expect(pending.get('dailyread-recall-2030-06-19')?.title).toBe('4 quick recalls');
   });

@@ -5,6 +5,8 @@ export interface PendingNotification {
   title: string;
   body: string;
   at: Date | null;
+  /** Android channel it was scheduled for, when it has one of its own. */
+  channelId?: string;
 }
 
 /** A button under an Android notification. Browsers cannot show these, so nothing may depend on them. */
@@ -27,6 +29,18 @@ export interface NotificationChannel {
   icon?: string;
   /** Accent colour for the icon, e.g. "#d97706". */
   color?: string;
+  /**
+   * Android shows the app's own icon next to a notification. Name of a PNG in
+   * res/drawable-nodpi (e.g. "daily_read_logo") to show this tool's logo there instead.
+   */
+  logo?: string;
+  /**
+   * Name of a sound file in res/raw, without the extension (e.g. "daily_read_chime"). Android
+   * fixes a channel's sound when it first creates the channel, so a different sound needs a new `id`.
+   */
+  sound?: string;
+  /** Ids of older channels this one replaces; they are deleted when the first notification of this channel is shown. */
+  replaces?: string[];
 }
 
 export interface ScheduleOptions {

@@ -145,7 +145,15 @@ describe('Android implementation', () => {
       route: '/daily-read/lesson/x',
       slot: 'lesson',
       sticky: true,
-      channel: { id: 'daily-read', name: 'Daily Read', icon: 'ic_stat_book', color: '#d97706' },
+      channel: {
+        id: 'daily-read',
+        name: 'Daily Read',
+        icon: 'ic_stat_book',
+        color: '#d97706',
+        logo: 'daily_read_logo',
+        sound: 'daily_read_chime',
+        replaces: ['old-channel'],
+      },
       actions: [{ id: 'snooze', title: 'Snooze 1 hr', kind: 'snooze', minutes: 60 }],
     });
 
@@ -161,14 +169,21 @@ describe('Android implementation', () => {
       channelName: 'Daily Read',
       icon: 'ic_stat_book',
       color: '#d97706',
+      logo: 'daily_read_logo',
+      sound: 'daily_read_chime',
+      replaces: ['old-channel'],
       sticky: true,
       actions: [{ id: 'snooze', title: 'Snooze 1 hr', kind: 'snooze', minutes: 60 }],
     });
   });
 
   it('lists pending notifications from both engines', async () => {
-    rich.getPending.mockResolvedValueOnce({ notifications: [{ id: 'lesson-1', title: 'T', body: 'b', at: 1_900_000_000_000 }] });
-    expect(await android().listPending()).toEqual([{ id: 'lesson-1', title: 'T', body: 'b', at: new Date(1_900_000_000_000) }]);
+    rich.getPending.mockResolvedValueOnce({
+      notifications: [{ id: 'lesson-1', title: 'T', body: 'b', at: 1_900_000_000_000, channelId: 'daily-read' }],
+    });
+    expect(await android().listPending()).toEqual([
+      { id: 'lesson-1', title: 'T', body: 'b', at: new Date(1_900_000_000_000), channelId: 'daily-read' },
+    ]);
   });
 
   it('a tap or "Read now" on a rich notification opens its route, also after a cold start', async () => {

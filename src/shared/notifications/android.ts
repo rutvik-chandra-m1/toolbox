@@ -37,11 +37,14 @@ interface RichPlugin {
     channelName: string;
     icon?: string;
     color?: string;
+    logo?: string;
+    sound?: string;
+    replaces?: string[];
     sticky: boolean;
     actions: NotificationAction[];
   }): Promise<void>;
   cancel(options: { id: string }): Promise<void>;
-  getPending(): Promise<{ notifications: Array<{ id: string; title: string; body: string; at: number }> }>;
+  getPending(): Promise<{ notifications: Array<{ id: string; title: string; body: string; at: number; channelId: string }> }>;
   takeEvents(): Promise<{ events: NotificationEvent[] }>;
   addListener(event: 'notificationOpened', listener: (data: { id: string; route?: string }) => void): Promise<unknown>;
 }
@@ -113,6 +116,9 @@ export function createAndroidNotifications(): NotificationService {
           channelName: options.channel?.name ?? CHANNEL_NAME,
           icon: options.channel?.icon,
           color: options.channel?.color,
+          logo: options.channel?.logo,
+          sound: options.channel?.sound,
+          replaces: options.channel?.replaces,
           sticky: options.sticky === true,
           actions: options.actions ?? [],
         });
@@ -151,7 +157,7 @@ export function createAndroidNotifications(): NotificationService {
           body: n.body,
           at: n.schedule?.at ? new Date(n.schedule.at) : null,
         })),
-        ...own.notifications.map((n) => ({ id: n.id, title: n.title, body: n.body, at: new Date(n.at) })),
+        ...own.notifications.map((n) => ({ id: n.id, title: n.title, body: n.body, at: new Date(n.at), channelId: n.channelId })),
       ];
     },
     async canScheduleExact() {

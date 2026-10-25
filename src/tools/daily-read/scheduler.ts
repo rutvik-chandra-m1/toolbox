@@ -4,8 +4,20 @@ import { atTime, lessonsInScope, lessonsOf, plannedDatesFor, reconcilePlan, reca
 import type { Repository } from './repository';
 import { PLAN_DAYS, RECALL_ROUTE, SNOOZE_MINUTES, lessonRoute, type Book, type Lesson } from './types';
 
-/** Daily Read's own channel, status-bar icon (res/drawable/ic_stat_book.xml) and accent colour (amber-600). */
-const CHANNEL: NotificationChannel = { id: 'daily-read', name: 'Daily Read', icon: 'ic_stat_book', color: '#d97706' };
+/**
+ * Daily Read's own channel: status-bar icon (res/drawable/ic_stat_book.xml), accent colour (amber-600), its logo in
+ * place of the app icon and its own chime (both made by scripts/generate-daily-read-assets.mjs). Android fixes a
+ * channel's sound when it creates it, so the chime came with a new channel id and the first one is removed.
+ */
+const CHANNEL: NotificationChannel = {
+  id: 'daily-read-chime',
+  name: 'Daily Read',
+  icon: 'ic_stat_book',
+  color: '#d97706',
+  logo: 'daily_read_logo',
+  sound: 'daily_read_chime',
+  replaces: ['daily-read'],
+};
 const LESSON_SLOT = 'dailyread-lesson';
 const RECALL_SLOT = 'dailyread-recall';
 
@@ -99,7 +111,8 @@ async function run({ repo, books, notifications, now = Date.now, rng = Math.rand
   for (const id of pending.keys()) if (!wanted.has(id)) await notifications.cancel(id);
   for (const [id, w] of wanted) {
     const have = pending.get(id);
-    if (have && have.title === w.title && have.body === w.body && have.at?.getTime() === w.at.getTime()) continue;
+    const same = have && have.title === w.title && have.body === w.body && have.at?.getTime() === w.at.getTime();
+    if (same && have.channelId === CHANNEL.id) continue; // scheduled by an older version (other channel): schedule again
     await notifications.schedule(id, w.title, w.body, w.at, w.options);
   }
 }

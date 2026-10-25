@@ -77,6 +77,7 @@ public class RichNotificationsPlugin extends Plugin {
             item.put("title", entry.optString("title"));
             item.put("body", entry.optString("body"));
             item.put("at", entry.optLong("at"));
+            item.put("channelId", entry.optString("channelId"));
             list.put(item);
         }
         JSObject result = new JSObject();
