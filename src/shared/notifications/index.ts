@@ -3,7 +3,15 @@ import { createAndroidNotifications } from './android';
 import type { NotificationService } from './types';
 import { createWebNotifications } from './web';
 
-export type { NotificationPermission, NotificationService, PendingNotification, ScheduleOptions } from './types';
+export type {
+  NotificationAction,
+  NotificationChannel,
+  NotificationEvent,
+  NotificationPermission,
+  NotificationService,
+  PendingNotification,
+  ScheduleOptions,
+} from './types';
 
 /** Picks the implementation for the platform the app is running on. */
 export function createNotificationService(native = Capacitor.isNativePlatform()): NotificationService {

@@ -1,4 +1,5 @@
 import { defineRegistry } from '@/shared/tools';
+import { dailyReadTool } from './daily-read';
 import { notifierTool } from './notifier';
 import { todoTool } from './todo';
 import { wordToPdfTool } from './word-to-pdf';
@@ -14,4 +15,5 @@ export const tools = defineRegistry([
   todoTool,
   wordToPdfTool,
   notifierTool,
+  dailyReadTool,
 ]);

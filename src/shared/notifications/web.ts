@@ -8,6 +8,8 @@ interface Entry {
   body: string;
   at: Date;
   route?: string;
+  /** Notifications with the same tag replace each other in the browser's notification list. */
+  tag: string;
   timer?: ReturnType<typeof setTimeout>;
 }
 
@@ -30,7 +32,7 @@ export function createWebNotifications(): NotificationService {
     entries.delete(id);
     if (permission() !== 'granted') return;
     try {
-      const notification = new Notification(entry.title, { body: entry.body, tag: id });
+      const notification = new Notification(entry.title, { body: entry.body, tag: entry.tag });
       notification.onclick = () => {
         window.focus();
         if (entry.route) window.location.hash = entry.route;
@@ -38,7 +40,7 @@ export function createWebNotifications(): NotificationService {
       };
     } catch {
       // shortcut: Chrome on Android only allows service-worker notifications; tapping these does not route.
-      void navigator.serviceWorker?.ready.then((sw) => sw.showNotification(entry.title, { body: entry.body, tag: id }));
+      void navigator.serviceWorker?.ready.then((sw) => sw.showNotification(entry.title, { body: entry.body, tag: entry.tag }));
     }
     for (const listener of listeners) listener(id);
   }
@@ -61,7 +63,8 @@ export function createWebNotifications(): NotificationService {
     },
     async schedule(id: string, title: string, body: string, at: Date, options: ScheduleOptions = {}) {
       await service.cancel(id);
-      const entry: Entry = { title, body, at, route: options.route };
+      // shortcut: sticky, actions and channel are Android-only; a browser shows a plain notification.
+      const entry: Entry = { title, body, at, route: options.route, tag: options.slot ?? id };
       entries.set(id, entry);
       arm(id, entry);
     },
@@ -79,6 +82,9 @@ export function createWebNotifications(): NotificationService {
     onDelivered(listener) {
       listeners.add(listener);
       return () => listeners.delete(listener);
+    },
+    async takeEvents() {
+      return [];
     },
   };
   return service;

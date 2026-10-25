@@ -1,2 +1,2 @@
 export { defineRegistry, validateManifests } from './manifest';
-export type { ToolManifest } from './manifest';
+export type { ToolAccent, ToolManifest } from './manifest';

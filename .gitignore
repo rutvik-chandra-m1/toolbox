@@ -18,3 +18,11 @@ android/.idea/
 
 # Claude Code local files
 .claude/
+
+# Daily Read: book text is copyrighted and this repo is public. Never commit it.
+# (content/daily-read/sample/, ADD_BOOK.md and validate.py are fine to commit.)
+content/daily-read/books/
+content/daily-read/extracted/
+content/daily-read/**/*.txt
+*.extracted.txt
+*.pdf

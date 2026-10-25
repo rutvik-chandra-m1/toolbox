@@ -4,7 +4,7 @@ import { cn } from '@/shared/lib/cn';
 const controlClasses = cn(
   'min-h-12 w-full rounded-xl border border-slate-300 bg-white px-3 text-base text-slate-900',
   'placeholder:text-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500',
-  'focus-visible:border-indigo-500 focus-visible:outline-2 focus-visible:outline-indigo-500/40',
+  'focus-visible:border-accent-500 focus-visible:outline-2 focus-visible:outline-accent-500/40',
 );
 
 /** Labelled form control: wrap an <Input> / <Select> and the label is wired up for you. */

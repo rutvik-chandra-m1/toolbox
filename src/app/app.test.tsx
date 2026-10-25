@@ -63,6 +63,26 @@ describe('home screen', () => {
   });
 });
 
+describe('tool accent colour', () => {
+  const amberTool: ToolManifest = { ...fakeTools[0]!, id: 'amber-tool', route: '/amber-tool', accent: 'amber' };
+
+  it('a tool can ask for its own accent on its card and in the header; the others keep the default', async () => {
+    renderAt('/', [amberTool, fakeTools[1]!]);
+    expect(screen.getByRole('link', { name: /Alpha Tool/ }).getAttribute('data-accent')).toBe('amber');
+    expect(screen.getByRole('link', { name: /Beta Tool/ }).hasAttribute('data-accent')).toBe(false);
+
+    fireEvent.click(screen.getByRole('link', { name: /Alpha Tool/ }));
+    await screen.findByText('Alpha body');
+    expect(screen.getByRole('heading', { level: 1, name: 'Alpha Tool' }).closest('[data-accent]')?.getAttribute('data-accent')).toBe('amber');
+  });
+
+  it('is amber for Daily Read and indigo (no override) for the other registered tools', () => {
+    const accents = Object.fromEntries(registeredTools.map((t) => [t.id, t.accent ?? 'indigo']));
+    expect(accents['daily-read']).toBe('amber');
+    expect(Object.entries(accents).filter(([id]) => id !== 'daily-read').every(([, a]) => a === 'indigo')).toBe(true);
+  });
+});
+
 describe('routing', () => {
   it('opens a tool from its card, then returns home with the back button', async () => {
     renderAt('/', fakeTools);

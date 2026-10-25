@@ -8,9 +8,10 @@ function ToolCard({ tool }: { tool: ToolManifest }) {
   return (
     <Link
       to={tool.route}
-      className="flex min-h-28 items-start gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-indigo-400 hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 active:scale-[0.99] dark:border-slate-800 dark:bg-slate-900 dark:hover:border-indigo-500"
+      data-accent={tool.accent}
+      className="flex min-h-28 items-start gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-accent-400 hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500 active:scale-[0.99] dark:border-slate-800 dark:bg-slate-900 dark:hover:border-accent-500"
     >
-      <span className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-indigo-100 text-indigo-600 dark:bg-indigo-950 dark:text-indigo-300">
+      <span className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-accent-100 text-accent-600 dark:bg-accent-950 dark:text-accent-300">
         <Icon className="size-6" />
       </span>
       <span className="min-w-0">

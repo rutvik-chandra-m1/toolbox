@@ -33,11 +33,21 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths"></meta-data>
         </provider>
+
+        <!-- Daily Read: alarms, notification buttons, and re-arming after a restart (RichNotifier). -->
+        <receiver android:name=".RichReceiver" android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="android.intent.action.TIME_SET" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+            </intent-filter>
+        </receiver>
     </application>
 
     <!-- Permissions -->
 
-    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- No INTERNET permission on purpose: the app is fully offline (the WebView serves its own bundled files). -->
 
     <!-- Notifier: show notifications (runtime permission on Android 13+). -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
@@ -45,6 +55,6 @@
          Android 13+: USE_EXACT_ALARM is granted at install for reminder apps. -->
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
-    <!-- Notifier: re-arm reminders after the phone restarts. -->
+    <!-- Notifier and Daily Read: re-arm reminders after the phone restarts. -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 </manifest>

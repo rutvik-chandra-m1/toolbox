@@ -54,7 +54,7 @@ export function Segmented<T extends string>({
                 'text-slate-600 transition-colors dark:text-slate-300',
                 'peer-checked:bg-white peer-checked:text-slate-900 peer-checked:shadow-sm',
                 'dark:peer-checked:bg-slate-600 dark:peer-checked:text-white',
-                'peer-focus-visible:outline-2 peer-focus-visible:outline-offset-1 peer-focus-visible:outline-indigo-500',
+                'peer-focus-visible:outline-2 peer-focus-visible:outline-offset-1 peer-focus-visible:outline-accent-500',
               )}
             >
               {option.label}

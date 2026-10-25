@@ -4,7 +4,7 @@ import { cn } from '@/shared/lib/cn';
 export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
 
 const variants: Record<ButtonVariant, string> = {
-  primary: 'bg-indigo-600 text-white hover:bg-indigo-700 active:bg-indigo-800',
+  primary: 'bg-accent-600 text-white hover:bg-accent-700 active:bg-accent-800',
   secondary:
     'bg-slate-200 text-slate-900 hover:bg-slate-300 active:bg-slate-400/70 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700',
   ghost:
@@ -23,7 +23,7 @@ export function Button({ variant = 'secondary', className, type = 'button', ...p
       type={type}
       className={cn(
         'inline-flex min-h-12 items-center justify-center gap-2 rounded-xl px-4 text-base font-medium transition-colors',
-        'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500',
+        'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500',
         'disabled:pointer-events-none disabled:opacity-50',
         variants[variant],
         className,
@@ -54,7 +54,7 @@ export function IconButton({
       title={label}
       className={cn(
         'inline-flex size-12 shrink-0 items-center justify-center rounded-full transition-colors',
-        'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500',
+        'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500',
         'disabled:pointer-events-none disabled:opacity-50',
         variants[variant],
         className,

@@ -12,7 +12,7 @@ export function EmptyState({ icon: Icon, title, description, children }: EmptySt
   return (
     <div className="flex flex-col items-center rounded-2xl border border-dashed border-slate-300 px-6 py-12 text-center dark:border-slate-700">
       {Icon && (
-        <div className="mb-4 flex size-14 items-center justify-center rounded-full bg-indigo-100 text-indigo-600 dark:bg-indigo-950 dark:text-indigo-300">
+        <div className="mb-4 flex size-14 items-center justify-center rounded-full bg-accent-100 text-accent-600 dark:bg-accent-950 dark:text-accent-300">
           <Icon className="size-7" />
         </div>
       )}

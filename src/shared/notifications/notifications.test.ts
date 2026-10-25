@@ -1,7 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const isNativePlatform = vi.hoisted(() => vi.fn(() => false));
-vi.mock('@capacitor/core', () => ({ Capacitor: { isNativePlatform } }));
+// The app's own native plugin (RichNotifications), used for channels, sticky notifications and buttons.
+const rich = vi.hoisted(() => ({
+  schedule: vi.fn(async () => {}),
+  cancel: vi.fn(async () => {}),
+  getPending: vi.fn(async () => ({ notifications: [] as unknown[] })),
+  takeEvents: vi.fn(async () => ({ events: [] as unknown[] })),
+  addListener: vi.fn(async () => ({ remove: async () => {} })),
+}));
+vi.mock('@capacitor/core', () => ({ Capacitor: { isNativePlatform }, registerPlugin: () => rich }));
 
 const plugin = vi.hoisted(() => ({
   createChannel: vi.fn(async () => {}),
@@ -112,9 +120,10 @@ describe('Android implementation', () => {
     );
   });
 
-  it('cancels by the same numeric id it scheduled with', async () => {
+  it('cancels by the same numeric id it scheduled with (in both engines)', async () => {
     await android().cancel('r1');
     expect(plugin.cancel).toHaveBeenCalledWith({ notifications: [{ id: toNativeId('r1') }] });
+    expect(rich.cancel).toHaveBeenCalledWith({ id: 'r1' });
   });
 
   it('lists pending notifications by their original string id', async () => {
@@ -122,6 +131,59 @@ describe('Android implementation', () => {
       notifications: [{ id: 5, title: 'Reminder', body: 'x', schedule: { at: new Date(2030, 0, 1) }, extra: { id: 'r1' } }],
     });
     expect(await android().listPending()).toEqual([{ id: 'r1', title: 'Reminder', body: 'x', at: new Date(2030, 0, 1) }]);
+  });
+
+  it('a plain notification never touches the rich engine', async () => {
+    await android().schedule('plain', 'T', 'b', new Date(2030, 0, 1), { route: '/notifier' });
+    expect(plugin.schedule).toHaveBeenCalledOnce();
+    expect(rich.schedule).not.toHaveBeenCalled();
+  });
+
+  it('a channel, sticky flag or buttons send it to the rich engine, with its own channel, icon and colour', async () => {
+    const at = new Date(2030, 0, 2, 8, 0);
+    await android().schedule('lesson-1', 'Title', 'Hook', at, {
+      route: '/daily-read/lesson/x',
+      slot: 'lesson',
+      sticky: true,
+      channel: { id: 'daily-read', name: 'Daily Read', icon: 'ic_stat_book', color: '#d97706' },
+      actions: [{ id: 'snooze', title: 'Snooze 1 hr', kind: 'snooze', minutes: 60 }],
+    });
+
+    expect(plugin.schedule).not.toHaveBeenCalled();
+    expect(rich.schedule).toHaveBeenCalledWith({
+      id: 'lesson-1',
+      notifId: toNativeId('lesson'), // the slot decides which notification it replaces
+      title: 'Title',
+      body: 'Hook',
+      at: at.getTime(),
+      route: '/daily-read/lesson/x',
+      channelId: 'daily-read',
+      channelName: 'Daily Read',
+      icon: 'ic_stat_book',
+      color: '#d97706',
+      sticky: true,
+      actions: [{ id: 'snooze', title: 'Snooze 1 hr', kind: 'snooze', minutes: 60 }],
+    });
+  });
+
+  it('lists pending notifications from both engines', async () => {
+    rich.getPending.mockResolvedValueOnce({ notifications: [{ id: 'lesson-1', title: 'T', body: 'b', at: 1_900_000_000_000 }] });
+    expect(await android().listPending()).toEqual([{ id: 'lesson-1', title: 'T', body: 'b', at: new Date(1_900_000_000_000) }]);
+  });
+
+  it('a tap or "Read now" on a rich notification opens its route, also after a cold start', async () => {
+    const service = android();
+    await service.checkPermission();
+    await vi.waitFor(() => expect(rich.addListener).toHaveBeenCalledWith('notificationOpened', expect.any(Function)));
+    const handler = (rich.addListener.mock.calls[0] as unknown as [string, (e: unknown) => void])[1];
+    handler({ id: 'lesson-1', route: '/daily-read/lesson/x' });
+    expect(window.location.hash).toBe('#/daily-read/lesson/x');
+  });
+
+  it('reports what the buttons did while the app was closed', async () => {
+    const events = [{ type: 'dismissed', id: 'lesson-2030-01-02', at: 5 }];
+    rich.takeEvents.mockResolvedValueOnce({ events });
+    expect(await android().takeEvents()).toEqual(events);
   });
 
   it('maps permission and exact-alarm states', async () => {
@@ -214,6 +276,14 @@ describe('browser implementation', () => {
 
     expect(delivered).toEqual(['ok']);
     expect(shown).toHaveLength(1);
+  });
+
+  it('shows rich notifications as plain ones, and a slot makes later ones replace earlier ones', async () => {
+    const service = web();
+    await service.schedule('lesson-1', 'T', 'b', new Date(2030, 0, 1, 12, 0, 1), { slot: 'lesson', sticky: true, actions: [] });
+    vi.advanceTimersByTime(1000);
+    expect(shown).toEqual([{ title: 'T', options: { body: 'b', tag: 'lesson' } }]);
+    expect(await service.takeEvents()).toEqual([]);
   });
 
   it('maps permissions and asks only when the user has not answered', async () => {

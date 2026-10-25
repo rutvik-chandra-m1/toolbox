@@ -1,5 +1,8 @@
 import type { ComponentType, LazyExoticComponent } from 'react';
 
+/** Accent colour a tool can ask for; the palettes live in src/index.css (`[data-accent='...']`). */
+export type ToolAccent = 'indigo' | 'amber';
+
 /**
  * What every tool exports (from its folder's `index.ts`) so the shell can show
  * and route to it without knowing anything else about it.
@@ -17,6 +20,8 @@ export interface ToolManifest {
   route: string;
   /** The tool's root component, code-split with `React.lazy(() => import('./Page'))`. */
   component: LazyExoticComponent<ComponentType>;
+  /** Optional accent colour for the tool's card, header and shared buttons. Default: indigo. */
+  accent?: ToolAccent;
   /**
    * Optional: runs once each time the app opens, whichever screen is shown
    * (e.g. to re-arm reminders). Keep it cheap: dynamic-import anything heavy.

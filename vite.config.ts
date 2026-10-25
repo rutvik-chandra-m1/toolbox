@@ -44,6 +44,8 @@ export default defineConfig(({ mode }) => {
               },
               workbox: {
                 globPatterns: ['**/*.{js,css,html,svg,png,ico,webmanifest}'],
+                // Daily Read's books are bundled into a script chunk; the default 2 MiB cap would leave a large one out of the offline cache.
+                maximumFileSizeToCacheInBytes: 25 * 1024 * 1024,
                 navigateFallback: 'index.html',
                 cleanupOutdatedCaches: true,
               },

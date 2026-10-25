@@ -36,7 +36,7 @@ export const notesTool: ToolManifest = {
 };
 ```
 
-The manifest has these six fields, plus one optional one:
+The manifest has these six fields, plus two optional ones:
 
 | Field | Meaning |
 | --- | --- |
@@ -46,6 +46,7 @@ The manifest has these six fields, plus one optional one:
 | `icon` | Icon component |
 | `route` | Where the tool lives, e.g. `/notes`. Sub-paths like `/notes/anything` also go to your component, so a tool can have internal routes |
 | `component` | The root component, wrapped in `React.lazy` and **default-exported** from its file |
+| `accent` | *Optional.* `'indigo'` (default) or `'amber'`: the colour of the tool's home card, its header and the shared buttons, fields and empty states inside it. Shared components use `accent-*` utilities (`bg-accent-600`, ...) that follow it. To add a colour, add a `[data-accent='...']` palette to `src/index.css` and the name to `ToolAccent` in `src/shared/tools/manifest.ts` |
 | `onAppStart` | *Optional.* Runs once every time the app opens, whatever screen it opens on, e.g. to re-arm reminders. Keep it cheap: `import()` the real work inside it. See `src/tools/notifier/index.ts` |
 
 ### 3. Write the page: `src/tools/notes/NotesPage.tsx`
@@ -190,7 +191,9 @@ await notifications.cancel('my-tool-123');
 | --- | --- |
 | `requestPermission()` / `checkPermission()` | `'granted' | 'denied' | 'prompt' | 'unsupported'`. Ask the first time it is needed (for example on the first save), and show a banner when it is denied. |
 | `schedule(id, title, body, date, { route })` | Shows `title` (large, bold) and `body` exactly as given at `date`. Pass `''` as `body` for a single big line of text (Notifier does). On Android a title longer than about 40 characters is then shown as expandable body text instead, since Android cuts titles to one line. Re-using an id replaces the earlier one. `route` is the screen tapping the notification opens. |
-| `cancel(id)` | Cancels it. |
+| `schedule(..., { channel, slot, sticky, actions })` | Android only (a browser shows a plain notification). `channel`: its own channel, status-bar icon (a white drawable such as `ic_stat_book`) and colour. `slot`: notifications sharing a slot replace each other, so only the latest is in the shade. `sticky`: ongoing; a swipe posts it again. `actions`: buttons of kind `open` (open the route), `snooze` (hide, show again after `minutes`) or `dismiss` (remove it; reported later by `takeEvents()`). These run in native code (`Rich*.java`), so they work with the app closed. See `src/tools/daily-read/scheduler.ts` |
+| `takeEvents()` | What `dismiss`/`snooze` buttons did while the app was closed; each event is returned once. Always empty in a browser |
+| `cancel(id)` | Cancels it, and removes it from the notification shade if it is showing. |
 | `listPending()` | What is still scheduled. |
 | `canScheduleExact()` / `openExactAlarmSettings()` | Android 12+: whether exact timing is allowed, and a shortcut to the "Alarms & reminders" setting. Always true / no-op in a browser. |
 | `firesWhenClosed` | `true` on Android (the OS delivers it, app closed or phone locked). `false` in a browser: timers only run while the app is open, so tell the user. |

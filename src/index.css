@@ -19,6 +19,56 @@
   --inset-left: max(env(safe-area-inset-left, 0px), var(--safe-area-inset-left, 0px));
 }
 
+/*
+ * Per-tool accent colour. Shared components and the shell use `accent-*` utilities
+ * (bg-accent-600, text-accent-700 ...), which follow the nearest `data-accent`
+ * attribute; the default is indigo. A tool picks its colour with `accent` in its
+ * manifest. To add a colour: add a palette block below and its name to ToolAccent
+ * (src/shared/tools/manifest.ts).
+ */
+@theme inline {
+  --color-accent-50: var(--accent-50);
+  --color-accent-100: var(--accent-100);
+  --color-accent-200: var(--accent-200);
+  --color-accent-300: var(--accent-300);
+  --color-accent-400: var(--accent-400);
+  --color-accent-500: var(--accent-500);
+  --color-accent-600: var(--accent-600);
+  --color-accent-700: var(--accent-700);
+  --color-accent-800: var(--accent-800);
+  --color-accent-900: var(--accent-900);
+  --color-accent-950: var(--accent-950);
+}
+
+:root,
+[data-accent='indigo'] {
+  --accent-50: var(--color-indigo-50);
+  --accent-100: var(--color-indigo-100);
+  --accent-200: var(--color-indigo-200);
+  --accent-300: var(--color-indigo-300);
+  --accent-400: var(--color-indigo-400);
+  --accent-500: var(--color-indigo-500);
+  --accent-600: var(--color-indigo-600);
+  --accent-700: var(--color-indigo-700);
+  --accent-800: var(--color-indigo-800);
+  --accent-900: var(--color-indigo-900);
+  --accent-950: var(--color-indigo-950);
+}
+
+[data-accent='amber'] {
+  --accent-50: var(--color-amber-50);
+  --accent-100: var(--color-amber-100);
+  --accent-200: var(--color-amber-200);
+  --accent-300: var(--color-amber-300);
+  --accent-400: var(--color-amber-400);
+  --accent-500: var(--color-amber-500);
+  --accent-600: var(--color-amber-600);
+  --accent-700: var(--color-amber-700);
+  --accent-800: var(--color-amber-800);
+  --accent-900: var(--color-amber-900);
+  --accent-950: var(--color-amber-950);
+}
+
 html,
 body,
 #root {
