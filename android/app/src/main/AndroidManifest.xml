@@ -45,6 +45,13 @@
         </receiver>
     </application>
 
+    <!-- Images to PDF: since Android 11 the WebView can't find a camera app to open unless this is declared. -->
+    <queries>
+        <intent>
+            <action android:name="android.media.action.IMAGE_CAPTURE" />
+        </intent>
+    </queries>
+
     <!-- Permissions -->
 
     <!-- No INTERNET permission on purpose: the app is fully offline (the WebView serves its own bundled files). -->
@@ -57,4 +64,6 @@
     <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
     <!-- Notifier and Daily Read: re-arm reminders after the phone restarts. -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <!-- Images to PDF: only Android 9 and older need this to write to Downloads; newer versions use MediaStore. -->
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
 </manifest>

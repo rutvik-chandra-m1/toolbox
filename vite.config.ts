@@ -43,7 +43,7 @@ export default defineConfig(({ mode }) => {
                 ],
               },
               workbox: {
-                globPatterns: ['**/*.{js,css,html,svg,png,ico,webmanifest}'],
+                globPatterns: ['**/*.{js,css,html,svg,png,ico,webmanifest,traineddata}'],
                 // Daily Read's books are bundled into a script chunk; the default 2 MiB cap would leave a large one out of the offline cache.
                 maximumFileSizeToCacheInBytes: 25 * 1024 * 1024,
                 navigateFallback: 'index.html',
@@ -67,6 +67,16 @@ export default defineConfig(({ mode }) => {
     build: {
       outDir: native ? 'dist-android' : 'dist',
       emptyOutDir: true,
+      rollupOptions: {
+        output: {
+          // tesseract.js looks for a file named exactly "eng.traineddata". It stays gzipped but must not
+          // be called .gz: the Android build unpacks every .gz asset and drops the extension.
+          assetFileNames: (asset) =>
+            asset.names.some((name) => name.endsWith('.traineddata.gz'))
+              ? 'assets/ocr/[name]'
+              : 'assets/[name]-[hash][extname]',
+        },
+      },
     },
     test: {
       environment: 'jsdom',

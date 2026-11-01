@@ -1,6 +1,10 @@
 export { sanitizeFilename } from './filename';
+export { createFileWriter } from './fileWriter';
+export type { FileWriter, SavedFile } from './fileWriter';
 export { formatFileSize } from './format';
-export { pickFile } from './pickFile';
+export { keepScreenOn } from './keepScreenOn';
+export { pickFile, pickFiles } from './pickFile';
+export type { PickFilesOptions } from './pickFile';
 export { isNativePlatform } from './platform';
 export { saveFile } from './saveFile';
 export type { SaveFileDeps, SaveResult } from './saveFile';

@@ -58,7 +58,7 @@ function downloadInBrowser(blob: Blob, filename: string): void {
   setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
 
-function blobToBase64(blob: Blob): Promise<string> {
+export function blobToBase64(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onerror = () => reject(reader.error ?? new Error('Could not read the file.'));

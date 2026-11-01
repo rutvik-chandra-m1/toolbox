@@ -24,7 +24,7 @@ Before declaring work done: `npm run build` and `npm test` both pass.
 ```
 src/app/      Shell: layout/header, router, home grid, 404. Knows NO tool by name.
 src/tools/    One folder per tool (src/tools/todo/ ...). registry.ts = the single list of all tools.
-src/shared/   ui/ (components), storage/ (typed interface + Dexie), files/ (pickFile/saveFile/drop target),
+src/shared/   ui/ (components), storage/ (typed interface + Dexie), files/ (pickFile/saveFile/createFileWriter/drop target),
               tools/ (manifest type), lib/ (helpers)
 android/      Capacitor Android project (committed). Web bundle is synced into it.
 scripts/      generate-icons.mjs, build-apk.mjs
@@ -64,6 +64,7 @@ docs/         ADDING_A_TOOL.md
 
 - App id `app.toolbox.personal`; Capacitor 8 needs **JDK 21+** and Android SDK platform 36. `scripts/build-apk.mjs` finds the JDK (`JAVA_HOME` or Android Studio's JBR, so an old `java` first on `PATH` is fine) and the SDK, and prints OS-specific install steps if one is missing.
 - Capacitor plugins in use: `@capacitor/filesystem` and `@capacitor/share` (for `saveFile`; no storage permissions needed, files go to the app cache). Adding a plugin means `npm install` then `npm run android:build` (it runs `cap sync`).
+- `ToolboxFilesPlugin.java` is the app's own plugin behind `createFileWriter` and `keepScreenOn`: it publishes finished files to Downloads/Toolbox (MediaStore on Android 10+, `WRITE_EXTERNAL_STORAGE` only up to Android 9) and opens or shares them.
 - `vite.config.ts` aliases jsPDF's unused optional imports (`canvg`, `dompurify`, old `html2canvas`) away; do not remove that, it keeps ~370 KB out of the offline cache and the APK.
 - Re-run `npm run icons` after changing the artwork in `scripts/generate-icons.mjs`; it rewrites the PWA icons and the Android mipmaps.
 - `android/local.properties` and Gradle build output are git-ignored.

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { pickFile } from './pickFile';
+import { pickFile, pickFiles } from './pickFile';
 
 const input = () => document.querySelector<HTMLInputElement>('input[type="file"]');
 
@@ -67,5 +67,31 @@ describe('pickFile', () => {
     const file = new File(['x'], 'b.docx');
     chooseFile(input() as HTMLInputElement, file);
     await expect(second).resolves.toBe(file);
+  });
+});
+
+describe('pickFiles', () => {
+  it('lets the user choose several files and resolves with all of them', async () => {
+    vi.spyOn(HTMLInputElement.prototype, 'click').mockImplementation(() => {});
+    const files = [new File(['a'], 'a.jpg'), new File(['b'], 'b.jpg')];
+
+    const promise = pickFiles(['image/jpeg']);
+    expect(input()?.multiple).toBe(true);
+    expect(input()?.getAttribute('capture')).toBeNull();
+    Object.defineProperty(input(), 'files', { configurable: true, value: files });
+    input()?.dispatchEvent(new Event('change'));
+
+    await expect(promise).resolves.toEqual(files);
+  });
+
+  it('asks for the camera, one photo at a time', async () => {
+    vi.spyOn(HTMLInputElement.prototype, 'click').mockImplementation(() => {});
+
+    const promise = pickFiles(['image/*'], { camera: true });
+    expect(input()?.multiple).toBe(false);
+    expect(input()?.getAttribute('capture')).toBe('environment');
+
+    input()?.dispatchEvent(new Event('cancel'));
+    await expect(promise).resolves.toEqual([]);
   });
 });

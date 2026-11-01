@@ -12,7 +12,27 @@ let pending: { input: HTMLInputElement; cancel: () => void } | null = null;
  *
  * Call it from a user gesture (a click handler); browsers block it otherwise.
  */
-export function pickFile(acceptedTypes: readonly string[]): Promise<File | null> {
+export async function pickFile(acceptedTypes: readonly string[]): Promise<File | null> {
+  return (await openChooser(acceptedTypes))[0] ?? null;
+}
+
+export interface PickFilesOptions {
+  /** Open the camera instead of the file chooser (phones; ignored on a laptop). */
+  camera?: boolean;
+}
+
+/**
+ * Like `pickFile`, but the user can choose several files at once. Resolves with
+ * an empty list if they cancelled.
+ */
+export function pickFiles(acceptedTypes: readonly string[], { camera = false }: PickFilesOptions = {}): Promise<File[]> {
+  return openChooser(acceptedTypes, (input) => {
+    input.multiple = !camera;
+    if (camera) input.setAttribute('capture', 'environment');
+  });
+}
+
+function openChooser(acceptedTypes: readonly string[], configure?: (input: HTMLInputElement) => void): Promise<File[]> {
   // A second call replaces a chooser that was left open and never answered.
   pending?.cancel();
 
@@ -21,16 +41,17 @@ export function pickFile(acceptedTypes: readonly string[]): Promise<File | null>
     input.type = 'file';
     input.accept = acceptedTypes.join(',');
     input.style.display = 'none';
+    configure?.(input);
 
-    const finish = (file: File | null) => {
+    const finish = (files: File[]) => {
       if (pending?.input === input) pending = null;
       input.remove();
-      resolve(file);
+      resolve(files);
     };
-    input.addEventListener('change', () => finish(input.files?.[0] ?? null), { once: true });
-    input.addEventListener('cancel', () => finish(null), { once: true });
+    input.addEventListener('change', () => finish(Array.from(input.files ?? [])), { once: true });
+    input.addEventListener('cancel', () => finish([]), { once: true });
 
-    pending = { input, cancel: () => finish(null) };
+    pending = { input, cancel: () => finish([]) };
     // Must be in the document for some mobile WebViews to open the chooser.
     document.body.appendChild(input);
     input.click();

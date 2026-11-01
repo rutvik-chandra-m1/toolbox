@@ -10,12 +10,13 @@ It contains these tools so far:
 
 - **Todo**: a task list with due dates, priorities, filters and sorting.
 - **Word to PDF**: pick a `.docx`, preview it, and get a PDF. Everything happens on the device; nothing is uploaded. [Details below](#word-to-pdf).
+- **Images to PDF**: turn up to 100 photos into one searchable PDF, with text you can select and copy, and that AI tools can read. [Details below](#images-to-pdf).
 - **Notifier**: type a reminder, pick a date and time, and get a notification with exactly that text. [Details below](#notifier).
 - **Daily Read**: one lesson from your own books every day, as a notification you cannot swipe away, with a deep read and spaced quick recalls. [Details below](#daily-read).
 
 The app is built so that more, unrelated tools can be dropped in without touching the rest. See [docs/ADDING_A_TOOL.md](docs/ADDING_A_TOOL.md).
 
-**Stack:** React 19 · TypeScript (strict) · Vite · React Router · Tailwind CSS · Dexie (IndexedDB) · vite-plugin-pwa · Capacitor (Android) · Vitest. Word to PDF adds docx-preview, html2canvas-pro and jsPDF (all loaded only when that tool is used).
+**Stack:** React 19 · TypeScript (strict) · Vite · React Router · Tailwind CSS · Dexie (IndexedDB) · vite-plugin-pwa · Capacitor (Android) · Vitest. Word to PDF adds docx-preview, html2canvas-pro and jsPDF (all loaded only when that tool is used). Images to PDF adds tesseract.js, with its engine and English model bundled in the app.
 
 ## Run it on your laptop
 
@@ -37,6 +38,7 @@ Open <http://localhost:5173>. Edits reload instantly.
 | `npm run typecheck` | TypeScript only |
 | `npm run icons` | Re-render every app icon (PWA, favicon, Android) from `scripts/generate-icons.mjs` |
 | `npm run sample:docx` | Re-create `docs/samples/sample.docx`, a small Word file for trying Word to PDF |
+| `npm run verify:images-to-pdf` | Build, then run Images to PDF end to end in Chrome and read the PDFs back with `pdftotext`, PyMuPDF and pypdf (needs those three: `pip install pymupdf pypdf`) |
 | `npm run android:build` | Build the Android debug APK (see below) |
 | `npm run android:check` | Report whether the JDK / Android SDK needed for the APK are installed |
 | `npm run android:sync` | Rebuild the web bundle and copy it into the Android project |
@@ -81,6 +83,29 @@ Converts well: headings and paragraph styles, bold / italic / underline / colour
 - **Not rendered or only approximated:** text boxes, WordArt, SmartArt, charts, equations, and complex floating-image layouts (limits of docx-preview).
 - **US Letter and landscape pages** are scaled to fit and centred on A4. This is implemented but was not run against such a file.
 - A single paragraph or image taller than a whole page is cut into page-height strips (implemented, not exercised).
+
+## Images to PDF
+
+Pick up to 100 photos (JPG, PNG, WEBP, and HEIC where the device can decode it) or take them with the camera on the phone, put them in order, and press **Create PDF**. Every page shows the photo and also holds its text, so this is a **searchable PDF**: the text can be selected, searched and copied, and tools such as `pdftotext`, pypdf, pdf.js and AI assistants can read it. Everything runs on the device, with no internet needed even on first use.
+
+- **Pages:** reorder by dragging the handle or with the up and down buttons, rotate, remove, or sort by file name or date taken.
+- **Options:** file name, page size (Fit to image, A4, Letter; portrait or landscape follows each image), margin, quality (Balanced is about 2000 px, High 3000 px, Small file 1400 px), OCR on or off, and an optional `.txt` copy of the text.
+- **Laptop / browser:** the PDF downloads. A second file (the `.txt`) can make the browser ask once whether to allow several downloads.
+- **Android app:** the PDF and `.txt` go to **Downloads/Toolbox**, and a name that is already taken becomes `name (1).pdf`. Nothing is ever overwritten. No permission is asked for on Android 10 and newer; Android 9 and older ask for storage permission.
+- **Unreadable images** are skipped and listed at the end. A photo with no text stays in the PDF as a page without text.
+- **Keep the screen open** while it runs. The app keeps the screen on by itself; if you leave the app, Android may pause it.
+
+### How it works
+
+1. A background worker decodes each image (the browser applies its EXIF orientation), applies your rotation, and makes the page image plus a separate copy of about 2500 px for OCR. Non-JPEG images become JPEGs, unless they have 256 colours or fewer and lossless is clearly smaller.
+2. [tesseract.js](https://github.com/naptha/tesseract.js) reads the OCR copy in its own worker. Its engine and the `eng` model are bundled as app files, so nothing is downloaded at runtime.
+3. `pdfWriter.ts` writes the page and then lets go of it: the image, then the words as invisible text (PDF render mode 3), each one stretched to its box in the photo.
+
+**Why tesseract.js:** the app is one web codebase for laptop and phone, and tesseract.js is the on-device engine that runs on both. Google ML Kit only exists on the phone.
+
+**Why not jsPDF, which the app already has:** it keeps every image in memory until the end, which 100 photos on a phone cannot afford, and its built-in fonts have no ToUnicode map. The small writer here streams each page out to storage, and its Helvetica font carries a ToUnicode map, so text extracts as real characters.
+
+**Limits:** OCR reads English, and works best on printed text; handwriting comes out poorly. Text in other alphabets is not recognised. A page that reads as a plain photo (low confidence across the page) keeps only words of 3 or more letters that OCR is very sure of, because Tesseract otherwise "finds" words in the texture of a photo.
 
 ## Notifier
 
@@ -187,7 +212,7 @@ The rules that keep it extensible (tools never import each other, only `shared/s
 
 ## Testing
 
-`npm test` runs about 310 tests: the todo logic and repository, the notification service (Android/browser branching with Capacitor mocked, exact timing, long delays) and the Notifier's validation, Upcoming/Past sorting and edit/delete scheduling, Daily Read's lesson picking, recall schedule, notification planning and screens, both storage backends against one shared contract suite, persistence across a simulated restart, the generated home screen and routes, the full todo UI, the file helpers (including the browser-versus-Android branching in `saveFile`), Word to PDF's validation and page flow, and the architecture rules. The real document rendering and PDF output need a real browser, so they are checked by converting `docs/samples/sample.docx` in the running app rather than in unit tests.
+`npm test` runs about 380 tests: the todo logic and repository, the notification service (Android/browser branching with Capacitor mocked, exact timing, long delays) and the Notifier's validation, Upcoming/Past sorting and edit/delete scheduling, Daily Read's lesson picking, recall schedule, notification planning and screens, both storage backends against one shared contract suite, persistence across a simulated restart, the generated home screen and routes, the full todo UI, the file helpers (including the browser-versus-Android branching in `saveFile`), Word to PDF's validation and page flow, and the architecture rules. The real document rendering and PDF output need a real browser, so they are checked by converting `docs/samples/sample.docx` in the running app rather than in unit tests. Images to PDF has an end-to-end check for the same reason: `npm run verify:images-to-pdf`.
 
 ## Troubleshooting
 
