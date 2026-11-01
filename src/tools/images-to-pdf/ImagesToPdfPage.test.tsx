@@ -54,9 +54,47 @@ describe('choosing pages', () => {
     expect(screen.queryByRole('button', { name: 'Take photo' })).toBeNull();
   });
 
-  it('lists picked images with page numbers', async () => {
+  it('in a browser, lists a batch by file name, because the click order is unknown, and says so', async () => {
     await addImages('b.jpg', 'a.jpg');
-    expect(rows()).toEqual([expect.stringContaining('1. b.jpg'), expect.stringContaining('2. a.jpg')]);
+    expect(rows()).toEqual([expect.stringContaining('1. a.jpg'), expect.stringContaining('2. b.jpg')]);
+    expect(screen.getByText(/not told the order you clicked/)).toBeTruthy();
+  });
+
+  it('on the phone, keeps exactly the order the picker gave', async () => {
+    filesApi.isNativePlatform.mockReturnValue(true);
+    render(<ImagesToPdfPage />, { container: document.body.appendChild(document.createElement('div')) });
+    filesApi.pickFiles.mockResolvedValueOnce(['c.jpg', 'a.jpg', 'b.jpg'].map(image));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Choose images' }).at(-1) as HTMLElement);
+
+    await waitFor(() => expect(rows().map((row) => row?.slice(3, 8))).toEqual(['c.jpg', 'a.jpg', 'b.jpg']));
+    expect(screen.queryByText(/not told the order you clicked/)).toBeNull();
+  });
+
+  it('Tap to set order numbers the pages, can undo a tap, and is what Create PDF gets', async () => {
+    await addImages('a.jpg', 'b.jpg', 'c.jpg', 'd.jpg');
+    fireEvent.click(screen.getByRole('button', { name: 'Tap to set order' }));
+    expect((screen.getByRole('button', { name: /^Create PDF/ }) as HTMLButtonElement).disabled).toBe(true);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Choose c.jpg next' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Choose a.jpg next' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Choose d.jpg next' }));
+    fireEvent.click(screen.getByRole('button', { name: 'a.jpg: position 2. Tap to undo' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Choose b.jpg next' }));
+    expect(screen.getByRole('button', { name: 'd.jpg: position 2. Tap to undo' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Done (3 of 4)' }));
+
+    convert.mockResolvedValueOnce(conversion());
+    fireEvent.click(screen.getByRole('button', { name: /^Create PDF/ }));
+    await screen.findByText('Your PDF is ready');
+    expect((convert.mock.calls[0]?.[0] ?? []).map((page) => page.file.name)).toEqual(['c.jpg', 'd.jpg', 'b.jpg', 'a.jpg']);
+  });
+
+  it('cancelling Tap to set order leaves the pages alone', async () => {
+    await addImages('a.jpg', 'b.jpg');
+    fireEvent.click(screen.getByRole('button', { name: 'Tap to set order' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Choose b.jpg next' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(rows()[0]).toContain('a.jpg');
   });
 
   it('appends with Add more', async () => {
@@ -76,7 +114,7 @@ describe('choosing pages', () => {
   it('reorders, sorts, rotates and removes', async () => {
     await addImages('c.jpg', 'a.jpg', 'b.jpg');
     fireEvent.click(screen.getByRole('button', { name: 'Move page 3 up' }));
-    expect(rows()[1]).toContain('b.jpg');
+    expect(rows()[1]).toContain('c.jpg');
 
     fireEvent.click(screen.getByRole('button', { name: 'By file name' }));
     expect(rows().map((row) => row?.slice(0, 7))).toEqual(['1. a.jp', '2. b.jp', '3. c.jp']);

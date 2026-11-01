@@ -6,6 +6,9 @@ import type { PageItem } from '../logic';
 
 export interface PageListProps {
   pages: readonly PageItem[];
+  /** Page ids in tap order while "Tap to set order" is on; rows are then one big button. */
+  tapped: readonly string[] | null;
+  onTap: (id: string) => void;
   onMove: (from: number, to: number) => void;
   onRotate: (page: PageItem) => void;
   onRemove: (page: PageItem) => void;
@@ -15,7 +18,7 @@ export interface PageListProps {
 const SCROLL_ZONE = 96;
 const SCROLL_STEP = 24;
 
-export function PageList({ pages, onMove, onRotate, onRemove }: PageListProps) {
+export function PageList({ pages, tapped, onTap, onMove, onRotate, onRemove }: PageListProps) {
   const [dragging, setDragging] = useState<string | null>(null);
 
   /*
@@ -49,15 +52,31 @@ export function PageList({ pages, onMove, onRotate, onRemove }: PageListProps) {
 
   return (
     <ol className="grid gap-2 sm:grid-cols-2">
-      {pages.map((page, index) => (
+      {pages.map((page, index) => {
+        const tapNumber = tapped ? tapped.indexOf(page.id) + 1 : 0;
+        return (
         <li
           key={page.id}
           data-page-id={page.id}
           className={cn(
-            'flex items-center gap-2 rounded-2xl border border-slate-200 bg-white p-1 dark:border-slate-800 dark:bg-slate-900',
-            dragging === page.id && 'border-accent-500 ring-2 ring-accent-500',
+            'relative flex items-center gap-2 rounded-2xl border border-slate-200 bg-white p-1 dark:border-slate-800 dark:bg-slate-900',
+            (dragging === page.id || tapNumber > 0) && 'border-accent-500 ring-2 ring-accent-500',
           )}
         >
+          {tapped && (
+            <button
+              type="button"
+              aria-label={tapNumber > 0 ? `${page.file.name}: position ${tapNumber}. Tap to undo` : `Choose ${page.file.name} next`}
+              onClick={() => onTap(page.id)}
+              className="absolute inset-0 z-10 flex items-center justify-end rounded-2xl pr-4 focus-visible:outline-2 focus-visible:outline-accent-500"
+            >
+              {tapNumber > 0 && (
+                <span className="flex size-10 items-center justify-center rounded-full bg-accent-600 text-lg font-semibold text-white">
+                  {tapNumber}
+                </span>
+              )}
+            </button>
+          )}
           <span
             role="button"
             aria-hidden
@@ -85,7 +104,7 @@ export function PageList({ pages, onMove, onRotate, onRemove }: PageListProps) {
             <p className="truncate text-sm">
               <span className="font-semibold">{index + 1}.</span> {page.file.name}
             </p>
-            <div className="-ml-1 flex">
+            <div className={cn('-ml-1 flex', tapped && 'invisible')}>
               <IconButton
                 label={`Move page ${index + 1} up`}
                 className="size-11"
@@ -111,7 +130,8 @@ export function PageList({ pages, onMove, onRotate, onRemove }: PageListProps) {
             </div>
           </div>
         </li>
-      ))}
+        );
+      })}
     </ol>
   );
 }

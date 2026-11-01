@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowDownAZ, CalendarDays, Camera, CircleAlert, FileOutput, Images, Info, Plus } from 'lucide-react';
+import { ArrowDownAZ, CalendarDays, Camera, CircleAlert, FileOutput, Images, Info, ListOrdered, Plus } from 'lucide-react';
 import { isNativePlatform, keepScreenOn, pickFiles, useDropTarget } from '@/shared/files';
 import { cn } from '@/shared/lib/cn';
 import { createId } from '@/shared/lib/id';
@@ -17,6 +17,7 @@ import {
   baseFilename,
   defaultOptions,
   movePage,
+  orderByTaps,
   rotateClockwise,
   selectImages,
   sortByDate,
@@ -45,6 +46,8 @@ export default function ImagesToPdfPage() {
   const [result, setResult] = useState<Conversion | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
   const [notes, setNotes] = useState<string[]>([]);
+  /** Page ids in the order they were tapped, while "Tap to set order" is on. */
+  const [tapped, setTapped] = useState<string[] | null>(null);
 
   const abort = useRef<AbortController | null>(null);
   const native = isNativePlatform();
@@ -89,10 +92,13 @@ export default function ImagesToPdfPage() {
 
   async function add(files: File[]) {
     const { accepted, notes: picked } = selectImages(pages.length, files);
-    setNotes(picked);
     setProblem(null);
     const added = await Promise.all(accepted.map(toPage));
-    setPages((current) => [...current, ...added]);
+    // Android's picker reports the order things were selected in. A browser is never told
+    // that: it gets the list as the OS built it, so file names are the order to trust.
+    const unknownOrder = !native && added.length > 1;
+    setNotes(unknownOrder ? [...picked, 'Listed by file name: browsers are not told the order you clicked files in. For your own order, use Tap to set order.'] : picked);
+    setPages((current) => [...current, ...(unknownOrder ? sortByName(added) : added)]);
   }
 
   async function choose(camera: boolean) {
@@ -115,6 +121,7 @@ export default function ImagesToPdfPage() {
     setResult(null);
     setProblem(null);
     setNotes([]);
+    setTapped(null);
     setPhase('edit');
   }
 
@@ -179,24 +186,52 @@ export default function ImagesToPdfPage() {
           </EmptyState>
         ) : (
           <>
-            <div className="flex flex-wrap gap-2">
-              <Button disabled={pages.length >= MAX_IMAGES} onClick={() => void choose(false)}>
-                <Plus className="size-5" aria-hidden />
-                Add more
-              </Button>
-              {takePhoto}
-              <Button variant="ghost" onClick={() => setPages(sortByName)}>
-                <ArrowDownAZ className="size-5" aria-hidden />
-                By file name
-              </Button>
-              <Button variant="ghost" onClick={() => setPages(sortByDate)}>
-                <CalendarDays className="size-5" aria-hidden />
-                By date taken
-              </Button>
-            </div>
+            {tapped ? (
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="w-full text-sm text-slate-600 dark:text-slate-400">
+                  Tap the pages in the order you want. Tap one again to undo it. Pages you skip go after them.
+                </p>
+                <Button
+                  variant="primary"
+                  onClick={() => {
+                    setPages((current) => orderByTaps(current, tapped));
+                    setTapped(null);
+                  }}
+                >
+                  Done ({tapped.length} of {pages.length})
+                </Button>
+                <Button onClick={() => setTapped(null)}>Cancel</Button>
+              </div>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                <Button disabled={pages.length >= MAX_IMAGES} onClick={() => void choose(false)}>
+                  <Plus className="size-5" aria-hidden />
+                  Add more
+                </Button>
+                {takePhoto}
+                <Button variant="ghost" onClick={() => setTapped([])}>
+                  <ListOrdered className="size-5" aria-hidden />
+                  Tap to set order
+                </Button>
+                <Button variant="ghost" onClick={() => setPages(sortByName)}>
+                  <ArrowDownAZ className="size-5" aria-hidden />
+                  By file name
+                </Button>
+                <Button variant="ghost" onClick={() => setPages(sortByDate)}>
+                  <CalendarDays className="size-5" aria-hidden />
+                  By date taken
+                </Button>
+              </div>
+            )}
 
             <PageList
               pages={pages}
+              tapped={tapped}
+              onTap={(id) =>
+                setTapped((current) =>
+                  current?.includes(id) ? current.filter((other) => other !== id) : [...(current ?? []), id],
+                )
+              }
               onMove={(from, to) => setPages((current) => movePage(current, from, to))}
               onRotate={(page) => update(page.id, { rotation: rotateClockwise(page.rotation) })}
               onRemove={remove}
@@ -204,7 +239,7 @@ export default function ImagesToPdfPage() {
 
             <OptionsForm options={options} onChange={setOptions} />
 
-            <Button variant="primary" className="w-full" onClick={() => void convert()}>
+            <Button variant="primary" className="w-full" disabled={tapped !== null} onClick={() => void convert()}>
               <FileOutput className="size-5" aria-hidden />
               Create PDF ({pages.length} {pages.length === 1 ? 'page' : 'pages'})
             </Button>

@@ -262,6 +262,30 @@ try {
     assert.equal(blank.pages[1].images[0].filter, 'FlateDecode');
   });
 
+  console.log('\nPage order');
+  await page.getByRole('button', { name: 'Convert more' }).click();
+  // The list is handed over scrambled, as an OS might: 3, 1, 2.
+  const [first, second, third] = images.mixed;
+  const [orderChooser] = await Promise.all([page.waitForEvent('filechooser'), page.getByRole('button', { name: 'Choose images' }).click()]);
+  await orderChooser.setFiles([third, first, second]);
+  await page.getByRole('listitem').nth(2).waitFor();
+  const listed = (await page.getByRole('listitem').allInnerTexts()).map((row) => row.split('\n')[0]);
+  check('a scrambled batch is listed by file name', () =>
+    assert.deepEqual(listed, ['1. 1-sentences.jpg', '2. 2-sentences.png', '3. 3-sentences.webp']),
+  );
+  await page.getByRole('button', { name: 'Tap to set order' }).click();
+  await page.getByRole('button', { name: 'Choose 3-sentences.webp next' }).click();
+  await page.getByRole('button', { name: 'Choose 1-sentences.jpg next' }).click();
+  await page.getByRole('button', { name: 'Choose 2-sentences.png next' }).click();
+  await page.getByRole('button', { name: /^Done/ }).click();
+  const ordered = inspect((await create('verify-order')).path);
+  check('the PDF has the pages in the tapped order', () => {
+    assert.deepEqual(
+      ordered.pages.map(({ words }) => words[0].text),
+      [PAGES.webp[0], PAGES.jpg[0], PAGES.png[0]].map((sentence) => sentence.split(' ')[0]),
+    );
+  });
+
   console.log('\nCancel');
   await page.getByRole('button', { name: 'Convert more' }).click();
   await addImages(images.mixed);

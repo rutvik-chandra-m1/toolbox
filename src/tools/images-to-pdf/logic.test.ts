@@ -8,6 +8,7 @@ import {
   isImage,
   layoutPage,
   movePage,
+  orderByTaps,
   rotateClockwise,
   selectImages,
   sortByDate,
@@ -66,6 +67,12 @@ describe('page order', () => {
 
   it('sorts by date taken', () => {
     expect(sortByDate([page('b', 20), page('a', 10)]).map((p) => p.id)).toEqual(['a', 'b']);
+  });
+
+  it('puts tapped pages first in tap order, and the rest after them as they were', () => {
+    const pages = ['a', 'b', 'c', 'd', 'e'].map((name) => page(name));
+    expect(orderByTaps(pages, ['d', 'a']).map((p) => p.id)).toEqual(['d', 'a', 'b', 'c', 'e']);
+    expect(orderByTaps(pages, []).map((p) => p.id)).toEqual(['a', 'b', 'c', 'd', 'e']);
   });
 
   it('rotates a quarter turn at a time and wraps around', () => {

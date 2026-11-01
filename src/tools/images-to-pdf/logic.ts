@@ -86,6 +86,12 @@ export function sortByDate(pages: readonly PageItem[]): PageItem[] {
   return [...pages].sort((a, b) => a.takenAt - b.takenAt);
 }
 
+/** The pages tapped, in the order they were tapped; the rest follow as they were. */
+export function orderByTaps(pages: readonly PageItem[], tapped: readonly string[]): PageItem[] {
+  const first = tapped.flatMap((id) => pages.filter((page) => page.id === id));
+  return [...first, ...pages.filter((page) => !tapped.includes(page.id))];
+}
+
 /* ------------------------------------------------------------------ */
 /* Options                                                             */
 /* ------------------------------------------------------------------ */

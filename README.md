@@ -88,7 +88,8 @@ Converts well: headings and paragraph styles, bold / italic / underline / colour
 
 Pick up to 100 photos (JPG, PNG, WEBP, and HEIC where the device can decode it) or take them with the camera on the phone, put them in order, and press **Create PDF**. Every page shows the photo and also holds its text, so this is a **searchable PDF**: the text can be selected, searched and copied, and tools such as `pdftotext`, pypdf, pdf.js and AI assistants can read it. Everything runs on the device, with no internet needed even on first use.
 
-- **Pages:** reorder by dragging the handle or with the up and down buttons, rotate, remove, or sort by file name or date taken.
+- **Pages:** reorder by dragging the handle, with the up and down buttons, or with **Tap to set order** (tap pages in the order you want; skipped ones go after them). Rotate, remove, or sort by file name or date taken. The PDF always uses the order shown in the list.
+- **Selection order:** the Android picker's order is kept, whether you tap photos or drag across them. A browser is never told the order you clicked files in, so on a laptop each batch is listed by file name; use Tap to set order for a custom order.
 - **Options:** file name, page size (Fit to image, A4, Letter; portrait or landscape follows each image), margin, quality (Balanced is about 2000 px, High 3000 px, Small file 1400 px), OCR on or off, and an optional `.txt` copy of the text.
 - **Laptop / browser:** the PDF downloads. A second file (the `.txt`) can make the browser ask once whether to allow several downloads.
 - **Android app:** the PDF and `.txt` go to **Downloads/Toolbox**, and a name that is already taken becomes `name (1).pdf`. Nothing is ever overwritten. No permission is asked for on Android 10 and newer; Android 9 and older ask for storage permission.
