@@ -1,8 +1,14 @@
 import { defineRegistry } from '@/shared/tools';
+import { converterTool } from './converter';
 import { dailyReadTool } from './daily-read';
+import { daysUntilTool } from './days-until';
+import { focusTool } from './focus';
+import { habitsTool } from './habits';
+import { journalTool } from './journal';
+import { notesTool } from './notes';
 import { notifierTool } from './notifier';
-import { todoTool } from './todo';
-import { wordToPdfTool } from './word-to-pdf';
+import { spendingTool } from './spending';
+import { waterTool } from './water';
 
 /**
  * THE list of tools in the app. The shell (home grid, router, header) is built
@@ -12,8 +18,14 @@ import { wordToPdfTool } from './word-to-pdf';
  * its manifest here: an `import` line and one entry in the array.
  */
 export const tools = defineRegistry([
-  todoTool,
-  wordToPdfTool,
+  habitsTool,
   notifierTool,
   dailyReadTool,
+  focusTool,
+  waterTool,
+  spendingTool,
+  journalTool,
+  notesTool,
+  daysUntilTool,
+  converterTool,
 ]);

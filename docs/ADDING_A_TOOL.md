@@ -105,10 +105,10 @@ export default function NotesPage() {
 ```ts
 import { defineRegistry } from '@/shared/tools';
 import { notesTool } from './notes';   // <- add
-import { todoTool } from './todo';
+import { habitsTool } from './habits';
 
 export const tools = defineRegistry([
-  todoTool,
+  habitsTool,
   notesTool,                            // <- add (order here is the order on the home screen)
 ]);
 ```
@@ -142,7 +142,7 @@ Styling is Tailwind, mobile first. Dark mode follows the system through `dark:` 
 
 ## File helpers (for tools that take or produce files)
 
-Tools like **Word to PDF** are *file in, file out*: they store nothing, they read a file the user picks and hand a new file back. Use these helpers from `@/shared/files` instead of writing your own, because the obvious browser tricks do not all work inside the Android app.
+Some tools (a file converter, say) are *file in, file out*: they store nothing, they read a file the user picks and hand a new file back. Use these helpers from `@/shared/files` instead of writing your own, because the obvious browser tricks do not all work inside the Android app.
 
 ```ts
 import { isNativePlatform, pickFile, saveFile, useDropTarget } from '@/shared/files';
@@ -169,10 +169,9 @@ await saveFile(result, 'LOUD.txt'); // download on a laptop, share sheet on the 
 Things to know:
 
 - **Do not** save with `<a download href={URL.createObjectURL(blob)}>` yourself, or `window.open(blobUrl)`: it works in a browser and silently does nothing in the Android app. Use `saveFile`.
-- **Load heavy libraries on demand** with a dynamic `import()` inside the function that needs them (as Word to PDF does for docx-preview, html2canvas-pro and jsPDF), so they cost nothing at startup and only download when the tool is used. Vite splits them into their own chunks automatically, and the PWA caches them for offline use.
-- **Validate before you process.** Check the extension and size first, then look at the file's first bytes (a `.docx` is a ZIP, `PK\x03\x04`), and give a specific message for each failure. See `src/tools/word-to-pdf/logic.ts` for a worked, tested example.
-- **Rendering untrusted documents:** if you display content from a file the user picked, do it in a `sandbox`ed iframe (no `allow-scripts`) rather than injecting it into the page. See `renderFrame.ts` in the Word to PDF tool.
-- **Worked example:** `src/tools/word-to-pdf/` is a complete tool built on all of the above, with a lazy page, page-level tests that mock the converter, and a pure `logic.ts`.
+- **Load heavy libraries on demand** with a dynamic `import()` inside the function that needs them, so they cost nothing at startup and only download when the tool is used. Vite splits them into their own chunks automatically, and the PWA caches them for offline use.
+- **Validate before you process.** Check the extension and size first, then look at the file's first bytes (a `.docx` is a ZIP, `PK\x03\x04`), and give a specific message for each failure.
+- **Rendering untrusted documents:** if you display content from a file the user picked, do it in a `sandbox`ed iframe (no `allow-scripts`) rather than injecting it into the page.
 
 ## Notification service
 
@@ -191,8 +190,8 @@ await notifications.cancel('my-tool-123');
 | --- | --- |
 | `requestPermission()` / `checkPermission()` | `'granted' | 'denied' | 'prompt' | 'unsupported'`. Ask the first time it is needed (for example on the first save), and show a banner when it is denied. |
 | `schedule(id, title, body, date, { route })` | Shows `title` (large, bold) and `body` exactly as given at `date`. Pass `''` as `body` for a single big line of text (Notifier does). On Android a title longer than about 40 characters is then shown as expandable body text instead, since Android cuts titles to one line. Re-using an id replaces the earlier one. `route` is the screen tapping the notification opens. |
-| `schedule(..., { channel, slot, sticky, actions })` | Android only (a browser shows a plain notification). `channel`: its own channel, status-bar icon (a white drawable such as `ic_stat_book`), colour, `logo` (a PNG in `res/drawable-nodpi`, shown instead of the app icon by posting the notification as a one-person conversation) and `sound` (a file in `res/raw`; a channel's sound is fixed once created, so a new sound needs a new channel `id`, and `replaces` lists old channel ids to delete). `slot`: notifications sharing a slot replace each other, so only the latest is in the shade. `sticky`: ongoing; a swipe posts it again. `actions`: buttons of kind `open` (open the route), `snooze` (hide, show again after `minutes`) or `dismiss` (remove it; reported later by `takeEvents()`). These run in native code (`Rich*.java`), so they work with the app closed. See `src/tools/daily-read/scheduler.ts` |
-| `takeEvents()` | What `dismiss`/`snooze` buttons did while the app was closed; each event is returned once. Always empty in a browser |
+| `schedule(..., { channel, slot, sticky, actions })` | Android only (a browser shows a plain notification). `channel`: its own channel, status-bar icon (a white drawable such as `ic_stat_book`), colour, `logo` (a PNG in `res/drawable-nodpi`, shown instead of the app icon by posting the notification as a one-person conversation) and `sound` (a file in `res/raw`; a channel's sound is fixed once created, so a new sound needs a new channel `id`, and `replaces` lists old channel ids to delete). `slot`: notifications sharing a slot replace each other, so only the latest is in the shade. `sticky`: ongoing; a swipe posts it again. `keepOnOpen`: tapping it opens the route without removing it. `actions`: buttons of kind `open` (open the route), `snooze` (hide, show again after `minutes`) or `dismiss` (remove it; reported later by `takeEvents()`). These run in native code (`Rich*.java`), so they work with the app closed. See `src/tools/daily-read/scheduler.ts` |
+| `takeEvents(routePrefix)` | What `dismiss`/`snooze` buttons did while the app was closed, for notifications whose route starts with `routePrefix` (pass your tool's route); each event is returned once, with the button's id in `action`. Always empty in a browser |
 | `cancel(id)` | Cancels it, and removes it from the notification shade if it is showing. |
 | `listPending()` | What is still scheduled. |
 | `canScheduleExact()` / `openExactAlarmSettings()` | Android 12+: whether exact timing is allowed, and a shortcut to the "Alarms & reminders" setting. Always true / no-op in a browser. |
@@ -218,8 +217,8 @@ Things to know:
 
 ## Tips
 
-- **Keep logic out of components.** Put rules (validation, sorting, formatting) in plain functions in their own file (see `src/tools/todo/logic.ts`) and test them with Vitest. Put reads/writes in a small repository over a `Collection` (see `src/tools/todo/repository.ts`) so you can test them against `createMemoryStorage()`.
-- **Test the page** by rendering it inside `<StorageProvider backend={createMemoryStorage()}>` (see `src/tools/todo/TodoPage.test.tsx`).
+- **Keep logic out of components.** Put rules (validation, sorting, formatting) in plain functions in their own file (see `src/tools/habits/logic.ts`) and test them with Vitest. Put reads/writes in a small repository over a `Collection` (see `src/tools/notifier/repository.ts`) so you can test them against `createMemoryStorage()`.
+- **Test the page** by rendering it inside `<StorageProvider backend={createMemoryStorage()}>` (see `src/tools/daily-read/DailyReadPage.test.tsx`).
 - **Nested screens:** your component can use React Router's `<Routes>` for paths below your `route`; they match relative to it.
 - **A tool that does not store anything** (say, a file converter) simply never calls `useCollection`. Nothing in the shell assumes a tool has data. For files, use the [file helpers](#file-helpers-for-tools-that-take-or-produce-files).
 - **A tool that needs a library** (a PDF writer, say) adds it with `npm install`; because the page is lazy-loaded, the library only downloads when the tool is opened.

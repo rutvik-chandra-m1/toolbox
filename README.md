@@ -4,18 +4,24 @@ A personal collection of small tools in one app. It runs in the browser on a lap
 
 [![Toolbox demo video. Click to watch.](docs/media/toolbox-demo.jpg)](docs/media/toolbox-demo.mp4)
 
-*A 22-second demo of the app: adding a todo and converting a Word file to PDF. Click the image to watch it.*
+*A 22-second demo of an earlier version of the app (its Todo and Word to PDF tools have since been replaced). Click the image to watch it.*
 
 It contains these tools so far:
 
-- **Todo**: a task list with due dates, priorities, filters and sorting.
-- **Word to PDF**: pick a `.docx`, preview it, and get a PDF. Everything happens on the device; nothing is uploaded. [Details below](#word-to-pdf).
+- **Habits**: tick off daily habits for any of the last 7 days and watch the streaks.
+- **Focus Timer**: 25-minute focus sessions and breaks; the running timer survives leaving the page and notifies you when it ends.
+- **Water**: count glasses against a daily goal, with a 7-day chart.
+- **Spending**: log an expense in seconds; totals for today and this month, by category.
+- **Journal**: a mood and a few lines for each day.
+- **Notes**: quick notes with pin and search.
+- **Days Until**: countdowns to dates, including yearly ones such as birthdays.
+- **Converter**: length, weight, volume, speed, area, data and temperature.
 - **Notifier**: type a reminder, pick a date and time, and get a notification with exactly that text. [Details below](#notifier).
 - **Daily Read**: one lesson from your own books every day, as a notification you cannot swipe away, with a deep read and spaced quick recalls. [Details below](#daily-read).
 
 The app is built so that more, unrelated tools can be dropped in without touching the rest. See [docs/ADDING_A_TOOL.md](docs/ADDING_A_TOOL.md).
 
-**Stack:** React 19 · TypeScript (strict) · Vite · React Router · Tailwind CSS · Dexie (IndexedDB) · vite-plugin-pwa · Capacitor (Android) · Vitest. Word to PDF adds docx-preview, html2canvas-pro and jsPDF (all loaded only when that tool is used).
+**Stack:** React 19 · TypeScript (strict) · Vite · React Router · Tailwind CSS · Dexie (IndexedDB) · vite-plugin-pwa · Capacitor (Android) · Vitest.
 
 ## Run it on your laptop
 
@@ -36,7 +42,6 @@ Open <http://localhost:5173>. Edits reload instantly.
 | `npm test` | Run all tests once (`npm run test:watch` to keep them running) |
 | `npm run typecheck` | TypeScript only |
 | `npm run icons` | Re-render every app icon (PWA, favicon, Android) from `scripts/generate-icons.mjs` |
-| `npm run sample:docx` | Re-create `docs/samples/sample.docx`, a small Word file for trying Word to PDF |
 | `npm run android:build` | Build the Android debug APK (see below) |
 | `npm run android:check` | Report whether the JDK / Android SDK needed for the APK are installed |
 | `npm run android:sync` | Rebuild the web bundle and copy it into the Android project |
@@ -49,42 +54,9 @@ Open <http://localhost:5173>. Edits reload instantly.
 
 The service worker caches the whole app, so it keeps working with no network. To use it day to day without a dev server running, host the `dist/` folder anywhere static (GitHub Pages, Netlify, any web server). It uses hash URLs (`#/todo`) so no server rewrite rules are needed. Browsers only allow installing from `https://` or `localhost`.
 
-## Word to PDF
-
-Open the tool, choose a `.docx` (or drag one onto the page on a laptop), look over the preview, and press **Convert to PDF**. A sample to try is in [`docs/samples/sample.docx`](docs/samples/sample.docx): it has a heading, bold/italic/underlined text, bullet and numbered lists, a table and an image.
-
-- **Laptop / browser:** the PDF downloads, named like the original (`Report.docx` becomes `Report.pdf`). "Download again" saves another copy.
-- **Android app:** a blob download does not work inside the app's WebView, so the PDF is written to the app's cache with the Capacitor Filesystem plugin and the system **share sheet** opens (Share plugin). From there you can open it, save it to Files or Drive, or send it. "Open / Share" brings the sheet back. No storage permissions are needed.
-- **Limits:** `.docx` only, up to 20 MB. The old `.doc` format and password-protected files are not supported, and the tool says so.
-
-### How it works
-
-1. The document is rendered to HTML in a hidden, sandboxed iframe with [docx-preview](https://github.com/VolodymyrBaydalka/docxjs). (An iframe keeps Tailwind's CSS reset from mangling the document, and, because it can't run scripts, a malicious link inside an untrusted file can't do anything.)
-2. It is split into A4-sized pages (`src/tools/word-to-pdf/paginate.ts`). Word files from Google Docs, LibreOffice and most generators contain no page boundaries, so a 5-page document would otherwise arrive as one very tall page. Pages break between paragraphs (never through a line of text), a heading stays with the text after it, long tables break between rows, and headers/footers and margins repeat on every page. The preview shows the same pages the PDF gets.
-3. Each page is drawn to a canvas with [html2canvas-pro](https://github.com/yorickshan/html2canvas-pro) and added to an A4 PDF with [jsPDF](https://github.com/parallax/jsPDF). Letter-size and landscape pages are scaled to fit and centred.
-
-**Why these libraries, not `html2pdf.js`:** `html2pdf.js` is still maintained, but it is a thin wrapper around `html2canvas` 1.4.1 (last released in 2022, and unable to read modern CSS colours) and jsPDF, and it cuts the page into slices by pixel height, which ignores Word's own pages. Using the maintained `html2canvas-pro` fork and jsPDF directly gives page-aware output. jsPDF's optional imports (`canvg`, `dompurify`, the old `html2canvas`) are aliased away in `vite.config.ts` because the app never uses those features; this keeps about 370 KB out of the offline cache and the APK.
-
-### What converts well, and what does not
-
-Converts well: headings and paragraph styles, bold / italic / underline / colours / font sizes, bullet and numbered lists, tables (borders, shading, alignment), images, page margins, explicit page breaks, headers and footers.
-
-**Seen in testing** (two generated documents: one with an explicit page break, one 6 pages long with no page breaks and a 44-row table; checked in a desktop browser and on an Android emulator):
-
-- **The PDF is made of page images.** It looks like the document, but its text can't be selected, searched or copied, and files are larger than a text PDF (about 0.5 MB per page).
-- **A table's header row is not repeated** when the table continues on the next page.
-
-**Expected from how it works, but not tested** (no real-world Word or Google Docs files were available to try):
-
-- **Fonts:** only fonts installed on the device are used, so a document in Calibri or Cambria falls back to a similar font and line breaks can shift slightly.
-- **Page numbers in a header/footer** are copied as saved, so a re-flowed document can repeat the same number on each page.
-- **Not rendered or only approximated:** text boxes, WordArt, SmartArt, charts, equations, and complex floating-image layouts (limits of docx-preview).
-- **US Letter and landscape pages** are scaled to fit and centred on A4. This is implemented but was not run against such a file.
-- A single paragraph or image taller than a whole page is cut into page-height strips (implemented, not exercised).
-
 ## Notifier
 
-Type a message (for example *Ask teacher about AICTE points*), pick a date and a time, and press **Save reminder**. At that minute the device shows a notification whose only text is your message exactly as typed, with no separate heading. A short message is shown as the large title line; a long one (over about 40 characters) is shown as normal-size text you can expand to read in full, because Android cuts a title to one line. Tapping it opens the app on the Notifier screen. Reminders are listed under **Upcoming** and **Past**; each can be edited (the notification is re-scheduled) or deleted (it is cancelled), and **Clear past reminders** removes the old ones. **Test notification** sends one in 10 seconds.
+Type a message (for example *Ask teacher about AICTE points*), pick a date and a time, and press **Save reminder**. At that minute the device shows a notification whose only text is your message exactly as typed, with no separate heading. A short message is shown as the large title line; a long one (over about 40 characters) is shown as normal-size text you can expand to read in full, because Android cuts a title to one line. On Android it stays until you answer it: swiping it, **Clear all** or tapping it does not remove it (a tap just opens the Notifier screen). Only its two buttons do, **Done** and **Not today**, and the reminder is then marked that way under **Past**. Reminders are listed under **Upcoming** and **Past**; each can be edited (the notification is re-scheduled) or deleted (it is cancelled), and **Clear past reminders** removes the old ones. **Test notification** sends one in 10 seconds.
 
 - **Android app:** Android itself delivers the notification from an exact alarm, so it arrives with the app closed and the phone locked. Notification permission is asked for the first time you save a reminder. Reminders survive a restart of the phone (the plugin re-arms them at boot), and the app also re-schedules every upcoming reminder each time it opens.
 - **Laptop (browser / installed PWA):** browsers cannot wake a closed web app, so **reminders only appear while the app is open** (a tab, or the installed app window, minimised is fine). Each time the app opens it re-arms the upcoming reminders from storage; anything that came due while it was closed is listed as **Missed**. The page says this too.
@@ -102,7 +74,8 @@ Type a message (for example *Ask teacher about AICTE points*), pick a date and a
 1. Install the new APK and open **Toolbox > Notifier**.
 2. Type a message, set the time to 2 or 3 minutes from now, and press **Save reminder**. Tap **Allow** on the permission question.
 3. Close the app completely: open the recent-apps screen and swipe Toolbox away. Lock the phone.
-4. Wait. At that minute the notification appears on the lock screen with your exact text. Tap it: the app opens on Notifier, and the reminder is under **Past** marked **Sent**.
+4. Wait. At that minute the notification appears on the lock screen with your exact text. Swipe it: it stays. Tap it: the app opens on Notifier, the notification stays, and the reminder is under **Past** marked **Sent**.
+5. Press **Done** on the notification: it goes, and the reminder is marked **Done**.
 
 For a quicker check, press **Test notification**, then close the app and lock the phone: it arrives 10 seconds later.
 
@@ -173,7 +146,7 @@ It is a *debug* build signed with a local debug key: fine for your own phone, no
 ```
 src/
   app/        Shell: layout + header, router, home screen, 404. Knows no tool by name.
-  tools/      One folder per tool (todo/ today). registry.ts is the ONE list of tools.
+  tools/      One folder per tool (habits/, notes/ ...). registry.ts is the ONE list of tools.
   shared/     Reusable code: ui/ (components), storage/ (typed interface + Dexie),
               files/ (pickFile, saveFile, drop target), notifications/ (schedule notifications),
               tools/ (the manifest type), lib/ (helpers)
@@ -187,7 +160,7 @@ The rules that keep it extensible (tools never import each other, only `shared/s
 
 ## Testing
 
-`npm test` runs about 310 tests: the todo logic and repository, the notification service (Android/browser branching with Capacitor mocked, exact timing, long delays) and the Notifier's validation, Upcoming/Past sorting and edit/delete scheduling, Daily Read's lesson picking, recall schedule, notification planning and screens, both storage backends against one shared contract suite, persistence across a simulated restart, the generated home screen and routes, the full todo UI, the file helpers (including the browser-versus-Android branching in `saveFile`), Word to PDF's validation and page flow, and the architecture rules. The real document rendering and PDF output need a real browser, so they are checked by converting `docs/samples/sample.docx` in the running app rather than in unit tests.
+`npm test` runs about 230 tests: the pure logic of each small tool, the notification service (Android/browser branching with Capacitor mocked, exact timing, long delays) and the Notifier's validation, Upcoming/Past sorting and edit/delete scheduling, Daily Read's lesson picking, recall schedule, notification planning and screens, both storage backends against one shared contract suite, persistence across a simulated restart, the generated home screen and routes, the full todo UI, the file helpers (including the browser-versus-Android branching in `saveFile`), Word to PDF's validation and page flow, and the architecture rules. The real document rendering and PDF output need a real browser, so they are checked by converting `docs/samples/sample.docx` in the running app rather than in unit tests.
 
 ## Troubleshooting
 
