@@ -20,6 +20,7 @@ import {
   existsSync,
   mkdirSync,
   readFileSync,
+  readdirSync,
   renameSync,
   rmSync,
   statSync,
@@ -261,3 +262,10 @@ log(`\nAPK ready (${(statSync(apk).size / 1024 / 1024).toFixed(1)} MB):`);
 log(`  ${apk}`);
 log('\nInstall: copy it to your phone and open it, or with USB debugging on:');
 log(`  adb install -r "${apk}"`);
+
+// Books are git-ignored, so a git worktree has none and Daily Read silently ships the sample lessons.
+const booksDir = join(root, 'content', 'daily-read', 'books');
+if (!existsSync(booksDir) || !readdirSync(booksDir).some((file) => file.endsWith('.json'))) {
+  log('\nWARNING: content/daily-read/books/ has no books, so this APK has only the Daily Read SAMPLE lessons.');
+  log('Copy the book files into this checkout and rebuild before installing it.');
+}

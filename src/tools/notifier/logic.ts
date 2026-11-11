@@ -2,6 +2,7 @@ import { parseISODate, toISODate } from '@/shared/lib/dates';
 import type { Reminder, ReminderDraft } from './types';
 
 export type DraftResult = { ok: true; message: string; at: number } | { ok: false; error: string };
+export type ReminderStatus = 'Sent' | 'Missed' | 'Done' | 'Not today';
 
 /** Local date + time inputs -> epoch ms, or null if either is not a real value. */
 export function combineDateTime(date: string, time: string): number | null {
@@ -33,8 +34,11 @@ export function splitReminders(reminders: readonly Reminder[], now: number) {
 /**
  * A past reminder was "Sent" if it was shown. Android shows it even with the
  * app closed; a browser only while the app is open, so otherwise it was missed.
+ * A button on the notification says more than that, so it wins.
  */
-export function pastStatus(reminder: Reminder, firesWhenClosed: boolean): 'Sent' | 'Missed' {
+export function pastStatus(reminder: Reminder, firesWhenClosed: boolean): ReminderStatus {
+  if (reminder.outcome === 'done') return 'Done';
+  if (reminder.outcome === 'skipped') return 'Not today';
   return firesWhenClosed || reminder.deliveredAt !== null ? 'Sent' : 'Missed';
 }
 

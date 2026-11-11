@@ -173,8 +173,19 @@ describe('Android implementation', () => {
       sound: 'daily_read_chime',
       replaces: ['old-channel'],
       sticky: true,
+      keepOnOpen: false,
       actions: [{ id: 'snooze', title: 'Snooze 1 hr', kind: 'snooze', minutes: 60 }],
     });
+  });
+
+  it('a long title-only rich notification also becomes expandable text, so nothing is cut off', async () => {
+    await android().schedule('long', MESSAGE, '', new Date(2030, 0, 1), { sticky: true, keepOnOpen: true });
+    expect(rich.schedule).toHaveBeenCalledWith(expect.objectContaining({ title: '', body: MESSAGE, keepOnOpen: true }));
+  });
+
+  it('moving an id to the rich engine cancels it in the other one, so it cannot fire twice', async () => {
+    await android().schedule('r1', 'T', 'b', new Date(2030, 0, 1), { sticky: true });
+    expect(plugin.cancel).toHaveBeenCalledWith({ notifications: [{ id: toNativeId('r1') }] });
   });
 
   it('lists pending notifications from both engines', async () => {
@@ -195,10 +206,11 @@ describe('Android implementation', () => {
     expect(window.location.hash).toBe('#/daily-read/lesson/x');
   });
 
-  it('reports what the buttons did while the app was closed', async () => {
-    const events = [{ type: 'dismissed', id: 'lesson-2030-01-02', at: 5 }];
+  it('reports what the buttons did while the app was closed, per tool', async () => {
+    const events = [{ type: 'dismissed', id: 'lesson-2030-01-02', action: 'skip', at: 5 }];
     rich.takeEvents.mockResolvedValueOnce({ events });
-    expect(await android().takeEvents()).toEqual(events);
+    expect(await android().takeEvents('/daily-read')).toEqual(events);
+    expect(rich.takeEvents).toHaveBeenCalledWith({ route: '/daily-read' });
   });
 
   it('maps permission and exact-alarm states', async () => {
@@ -297,8 +309,8 @@ describe('browser implementation', () => {
     const service = web();
     await service.schedule('lesson-1', 'T', 'b', new Date(2030, 0, 1, 12, 0, 1), { slot: 'lesson', sticky: true, actions: [] });
     vi.advanceTimersByTime(1000);
-    expect(shown).toEqual([{ title: 'T', options: { body: 'b', tag: 'lesson' } }]);
-    expect(await service.takeEvents()).toEqual([]);
+    expect(shown).toEqual([{ title: 'T', options: { body: 'b', tag: 'lesson', requireInteraction: true } }]);
+    expect(await service.takeEvents('/daily-read')).toEqual([]);
   });
 
   it('maps permissions and asks only when the user has not answered', async () => {

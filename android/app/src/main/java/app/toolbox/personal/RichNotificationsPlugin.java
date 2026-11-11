@@ -30,14 +30,15 @@ public class RichNotificationsPlugin extends Plugin {
         handleIntent(intent);
     }
 
-    /** A tap on the notification or on "Read now": clear it and tell the web app which screen to open. */
+    /** A tap on the notification or on "Read now": clear it (unless it asked to stay) and tell the web app which screen to open. */
     private void handleIntent(Intent intent) {
         if (intent == null) return;
         String key = intent.getStringExtra(RichNotifier.EXTRA_KEY);
         if (key == null) return;
         String route = intent.getStringExtra(RichNotifier.EXTRA_ROUTE);
         intent.removeExtra(RichNotifier.EXTRA_KEY); // an activity restart must not replay it
-        RichNotifier.cancel(getContext(), key);
+        JSONObject entry = RichStore.get(getContext(), key);
+        if (entry == null || !entry.optBoolean("keepOnOpen")) RichNotifier.cancel(getContext(), key);
 
         JSObject data = new JSObject();
         data.put("id", key);
@@ -88,7 +89,7 @@ public class RichNotificationsPlugin extends Plugin {
     @PluginMethod
     public void takeEvents(PluginCall call) {
         JSObject result = new JSObject();
-        result.put("events", RichStore.takeEvents(getContext()));
+        result.put("events", RichStore.takeEvents(getContext(), call.getString("route", "")));
         call.resolve(result);
     }
 }

@@ -1,8 +1,21 @@
 import { createId } from '@/shared/lib/id';
-import type { NotificationService } from '@/shared/notifications';
+import type { NotificationService, ScheduleOptions } from '@/shared/notifications';
 import type { Collection } from '@/shared/storage';
 import { validateDraft } from './logic';
-import { ROUTE, type Reminder, type ReminderDraft } from './types';
+import { ROUTE, type Reminder, type ReminderDraft, type ReminderOutcome } from './types';
+
+/** Stays until one of these buttons is pressed: a swipe, Clear all or a tap on it leaves it there. */
+export const NOTIFICATION_OPTIONS: ScheduleOptions = {
+  route: ROUTE,
+  sticky: true,
+  keepOnOpen: true,
+  actions: [
+    { id: 'done' satisfies ReminderOutcome, title: 'Done', kind: 'dismiss' },
+    { id: 'skipped' satisfies ReminderOutcome, title: 'Not today', kind: 'dismiss' },
+  ],
+};
+
+const isOutcome = (action: string | undefined): action is ReminderOutcome => action === 'done' || action === 'skipped';
 
 export interface ReminderDeps {
   now?: () => number;
@@ -16,7 +29,7 @@ export function createReminderRepository(
   { now = Date.now, newId = createId }: ReminderDeps = {},
 ) {
   // The message is the notification's title (shown large and bold); there is no separate heading.
-  const schedule = (r: Reminder) => notifications.schedule(r.id, r.message, '', new Date(r.at), { route: ROUTE });
+  const schedule = (r: Reminder) => notifications.schedule(r.id, r.message, '', new Date(r.at), NOTIFICATION_OPTIONS);
 
   function valid(draft: ReminderDraft) {
     const result = validateDraft(draft, now());
@@ -39,7 +52,7 @@ export function createReminderRepository(
       const existing = await collection.get(id);
       if (!existing) throw new Error('That reminder no longer exists.');
       await notifications.cancel(id);
-      const updated: Reminder = { ...existing, message, at, deliveredAt: null };
+      const updated: Reminder = { ...existing, message, at, deliveredAt: null, outcome: null };
       await collection.put(updated);
       await schedule(updated);
     },
@@ -60,6 +73,14 @@ export function createReminderRepository(
     async markDelivered(id: string): Promise<void> {
       const reminder = await collection.get(id);
       if (reminder && reminder.deliveredAt === null) await collection.put({ ...reminder, deliveredAt: now() });
+    },
+
+    /** Records which notification button answered each reminder (a test notification has no reminder to update). */
+    async applyEvents(): Promise<void> {
+      for (const { id, action } of await notifications.takeEvents(ROUTE)) {
+        const reminder = await collection.get(id);
+        if (reminder && isOutcome(action)) await collection.put({ ...reminder, outcome: action });
+      }
     },
 
     /** On app start: re-arm every upcoming reminder (browser timers die with the page; Android may have been force-stopped). */

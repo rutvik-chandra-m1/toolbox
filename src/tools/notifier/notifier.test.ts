@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { NotificationService } from '@/shared/notifications';
 import { createMemoryStorage } from '@/shared/storage';
 import { combineDateTime, pastStatus, splitReminders, validateDraft } from './logic';
-import { createReminderRepository } from './repository';
+import { createReminderRepository, NOTIFICATION_OPTIONS } from './repository';
 import type { Reminder } from './types';
 
 const NOW = new Date(2030, 5, 15, 10, 0).getTime(); // 15 Jun 2030, 10:00 local
@@ -59,6 +59,12 @@ describe('sorting into Upcoming and Past', () => {
     expect(pastStatus(reminder('a', NOW - 1), false)).toBe('Missed');
     expect(pastStatus(reminder('a', NOW - 1, { deliveredAt: NOW - 1 }), false)).toBe('Sent');
   });
+
+  it('the button pressed on the notification wins over Sent', () => {
+    expect(pastStatus(reminder('a', NOW - 1, { outcome: 'done' }), true)).toBe('Done');
+    expect(pastStatus(reminder('a', NOW - 1, { outcome: 'skipped' }), true)).toBe('Not today');
+    expect(pastStatus(reminder('a', NOW - 1, { outcome: null }), true)).toBe('Sent');
+  });
 });
 
 function setup() {
@@ -66,7 +72,12 @@ function setup() {
   const notifications = {
     schedule: vi.fn(async (id: string, title: string) => void calls.push(`schedule ${id} ${title}`)),
     cancel: vi.fn(async (id: string) => void calls.push(`cancel ${id}`)),
-  } as unknown as NotificationService & { schedule: ReturnType<typeof vi.fn>; cancel: ReturnType<typeof vi.fn> };
+    takeEvents: vi.fn(async () => []),
+  } as unknown as NotificationService & {
+    schedule: ReturnType<typeof vi.fn>;
+    cancel: ReturnType<typeof vi.fn>;
+    takeEvents: ReturnType<typeof vi.fn>;
+  };
   const collection = createMemoryStorage().collection<Reminder>('notifier', 'reminders');
   let ids = 0;
   const repo = createReminderRepository(collection, notifications, { now: () => NOW, newId: () => `id${++ids}` });
@@ -79,10 +90,41 @@ describe('reminder repository', () => {
     const saved = await repo.add(draft('Ask teacher about AICTE points', '2030-06-15', '11:00'));
 
     const at = new Date(2030, 5, 15, 11, 0);
-    expect(notifications.schedule).toHaveBeenCalledWith('id1', 'Ask teacher about AICTE points', '', at, {
-      route: '/notifier',
-    });
+    expect(notifications.schedule).toHaveBeenCalledWith('id1', 'Ask teacher about AICTE points', '', at, NOTIFICATION_OPTIONS);
     expect(await collection.getAll()).toEqual([saved]);
+  });
+
+  it('a reminder stays until answered: sticky, kept when tapped, with Done and Not today', () => {
+    expect(NOTIFICATION_OPTIONS).toMatchObject({ route: '/notifier', sticky: true, keepOnOpen: true });
+    expect(NOTIFICATION_OPTIONS.actions).toEqual([
+      { id: 'done', title: 'Done', kind: 'dismiss' },
+      { id: 'skipped', title: 'Not today', kind: 'dismiss' },
+    ]);
+  });
+
+  it('records which button answered a reminder, and ignores events without a reminder', async () => {
+    const { repo, notifications, collection } = setup();
+    await collection.put(reminder('a', NOW - 1));
+    await collection.put(reminder('b', NOW - 1));
+    notifications.takeEvents.mockResolvedValueOnce([
+      { type: 'dismissed', id: 'a', action: 'done', at: NOW },
+      { type: 'dismissed', id: 'b', action: 'skipped', at: NOW },
+      { type: 'dismissed', id: 'notifier-test', action: 'done', at: NOW },
+    ]);
+
+    await repo.applyEvents();
+
+    expect(notifications.takeEvents).toHaveBeenCalledWith('/notifier');
+    expect((await collection.get('a'))?.outcome).toBe('done');
+    expect((await collection.get('b'))?.outcome).toBe('skipped');
+    expect(await collection.get('notifier-test')).toBeUndefined();
+  });
+
+  it('editing a reminder clears the old answer', async () => {
+    const { repo, collection } = setup();
+    await collection.put(reminder('r', NOW - 1, { outcome: 'skipped' }));
+    await repo.update('r', draft('again', '2030-06-16', '08:30'));
+    expect((await collection.get('r'))?.outcome).toBeNull();
   });
 
   it('a past time is refused: nothing stored, nothing scheduled', async () => {

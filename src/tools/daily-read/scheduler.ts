@@ -2,7 +2,7 @@ import { addDays, todayISO } from '@/shared/lib/dates';
 import type { NotificationChannel, NotificationService, ScheduleOptions } from '@/shared/notifications';
 import { atTime, lessonsInScope, lessonsOf, plannedDatesFor, reconcilePlan, recallQuestionsDue } from './logic';
 import type { Repository } from './repository';
-import { PLAN_DAYS, RECALL_ROUTE, SNOOZE_MINUTES, lessonRoute, type Book, type Lesson } from './types';
+import { PLAN_DAYS, RECALL_ROUTE, ROUTE, SNOOZE_MINUTES, lessonRoute, type Book, type Lesson } from './types';
 
 /**
  * Daily Read's own channel: status-bar icon (res/drawable/ic_stat_book.xml), accent colour (amber-600), its logo in
@@ -63,7 +63,7 @@ export interface SyncDeps {
 
 async function run({ repo, books, notifications, now = Date.now, rng = Math.random }: SyncDeps): Promise<void> {
   // 1. What the notification buttons did while the app was closed.
-  for (const event of await notifications.takeEvents()) {
+  for (const event of await notifications.takeEvents(ROUTE)) {
     const day = LESSON_DAY.exec(event.id)?.[1];
     if (event.type === 'dismissed' && day) await repo.skip(day); // the lesson simply stays in the unread pool
   }

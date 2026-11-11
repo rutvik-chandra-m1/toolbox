@@ -14,6 +14,7 @@ import android.graphics.Color;
 import android.media.AudioAttributes;
 import android.net.Uri;
 import android.os.Build;
+import android.service.notification.StatusBarNotification;
 import androidx.core.app.NotificationCompat;
 import androidx.core.app.NotificationManagerCompat;
 import androidx.core.app.Person;
@@ -40,6 +41,7 @@ final class RichNotifier {
     static final String EXTRA_KEY = "rich_key";
     static final String EXTRA_ROUTE = "rich_route";
     static final String EXTRA_MINUTES = "rich_minutes";
+    static final String EXTRA_ACTION = "rich_action";
 
     private RichNotifier() {}
 
@@ -138,26 +140,35 @@ final class RichNotifier {
         set(entry, "at", System.currentTimeMillis() + minutes * 60_000L);
         RichStore.put(context, entry);
         arm(context, entry);
-        RichStore.addEvent(context, "snoozed", key);
+        RichStore.addEvent(context, "snoozed", key, entry.optString("route"), "");
     }
 
-    /** Removes it for good; the app is told so it can react (for example by returning a lesson to its pool). */
-    static void dismiss(Context context, String key) {
+    /** Removes it for good; the app is told which button did it, so it can react (for example by returning a lesson to its pool). */
+    static void dismiss(Context context, String key, String action) {
+        JSONObject entry = RichStore.get(context, key);
         cancel(context, key);
-        RichStore.addEvent(context, "dismissed", key);
+        RichStore.addEvent(context, "dismissed", key, entry == null ? "" : entry.optString("route"), action);
+    }
+
+    private static boolean inShade(Context context, int notifId) {
+        for (StatusBarNotification active : context.getSystemService(NotificationManager.class).getActiveNotifications()) {
+            if (active.getId() == notifId) return true;
+        }
+        return false;
     }
 
     /**
      * Re-arms every alarm. After a reboot (`repost`) the notification shade is empty too, so sticky
      * notifications that were showing are posted again, and ones that came due while the phone was off are posted now.
+     * A sticky one the system removed without a button (force stop, or a phone that kills apps hard) comes back too.
      */
     static void restoreAll(Context context, boolean repost) {
         long now = System.currentTimeMillis();
         for (JSONObject entry : RichStore.all(context)) {
             if (entry.optBoolean("shown")) {
-                if (!repost) continue;
-                if (entry.optBoolean("sticky")) show(context, entry, true);
-                else RichStore.remove(context, key(entry));
+                boolean sticky = entry.optBoolean("sticky");
+                if (sticky && (repost || !inShade(context, entry.optInt("notifId")))) show(context, entry, true);
+                else if (repost) RichStore.remove(context, key(entry));
             } else if (entry.optLong("at") > now) {
                 arm(context, entry);
             } else if (repost) {
@@ -178,12 +189,14 @@ final class RichNotifier {
         return PendingIntent.getActivity(context, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
     }
 
-    private static PendingIntent broadcast(Context context, String action, String key, int minutes) {
+    private static PendingIntent broadcast(Context context, String action, String key, int minutes, String button) {
         Intent intent = new Intent(context, RichReceiver.class)
                 .setAction(action)
-                .setData(Uri.parse("richnotif://" + action + "/" + Uri.encode(key)))
+                // The button is in the data so two dismiss buttons stay two PendingIntents.
+                .setData(Uri.parse("richnotif://" + action + "/" + Uri.encode(button) + "/" + Uri.encode(key)))
                 .putExtra(EXTRA_KEY, key)
-                .putExtra(EXTRA_MINUTES, minutes);
+                .putExtra(EXTRA_MINUTES, minutes)
+                .putExtra(EXTRA_ACTION, button);
         return PendingIntent.getBroadcast(context, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
     }
 
@@ -269,7 +282,7 @@ final class RichNotifier {
                 .setAutoCancel(!sticky)
                 .setSilent(quiet) // a re-post after a swipe must not buzz again
                 .setContentIntent(open(context, key, route, "tap"))
-                .setDeleteIntent(broadcast(context, ACTION_DELETED, key, 0));
+                .setDeleteIntent(broadcast(context, ACTION_DELETED, key, 0, ""));
 
         Bitmap logo = logo(context, entry.optString("logo"));
         if (logo != null) {
@@ -297,9 +310,10 @@ final class RichNotifier {
             if (action == null) continue;
             String kind = action.optString("kind");
             PendingIntent target;
-            if ("open".equals(kind)) target = open(context, key, route, "action-" + action.optString("id"));
-            else if ("snooze".equals(kind)) target = broadcast(context, ACTION_SNOOZE, key, action.optInt("minutes", 60));
-            else target = broadcast(context, ACTION_DISMISS, key, 0);
+            String id = action.optString("id");
+            if ("open".equals(kind)) target = open(context, key, route, "action-" + id);
+            else if ("snooze".equals(kind)) target = broadcast(context, ACTION_SNOOZE, key, action.optInt("minutes", 60), id);
+            else target = broadcast(context, ACTION_DISMISS, key, 0, id);
             builder.addAction(0, action.optString("title"), target);
         }
 

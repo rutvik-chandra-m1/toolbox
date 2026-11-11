@@ -15,7 +15,7 @@ export interface NotificationAction {
   title: string;
   /**
    * `open`: opens the notification's route. `snooze`: hides it and shows it again after `minutes`.
-   * `dismiss`: removes it and later reports a `dismissed` event (see `takeEvents`).
+   * `dismiss`: removes it and later reports a `dismissed` event with this button's `id` (see `takeEvents`).
    */
   kind: 'open' | 'snooze' | 'dismiss';
   minutes?: number;
@@ -56,8 +56,11 @@ export interface ScheduleOptions {
   /**
    * Android: ongoing and not cleared by a tap; if the user swipes it away (Android 14+ allows that)
    * it is posted again at once. Only its `actions`, opening the route, or `cancel()` remove it.
+   * Browsers keep it on screen until it is closed, but cannot stop that.
    */
   sticky?: boolean;
+  /** Android: tapping it opens the route but leaves it in place, so a sticky one really only goes through `actions` or `cancel()`. */
+  keepOnOpen?: boolean;
   actions?: NotificationAction[];
 }
 
@@ -66,6 +69,8 @@ export interface NotificationEvent {
   type: 'dismissed' | 'snoozed';
   /** The id the notification was scheduled with. */
   id: string;
+  /** Which `dismiss` button was pressed; empty for a snooze. */
+  action?: string;
   at: number;
 }
 
@@ -101,6 +106,9 @@ export interface NotificationService {
    * Android the OS shows it, possibly while the app is closed, so this never fires.
    */
   onDelivered(listener: (id: string) => void): () => void;
-  /** Android: what the user did with notification buttons since last asked (each event is returned once). Browser: always empty. */
-  takeEvents(): Promise<NotificationEvent[]>;
+  /**
+   * Android: what the user did with the buttons of notifications whose route starts with `routePrefix`, since last
+   * asked (each event is returned once; other tools' events wait for them). Browser: always empty.
+   */
+  takeEvents(routePrefix: string): Promise<NotificationEvent[]>;
 }

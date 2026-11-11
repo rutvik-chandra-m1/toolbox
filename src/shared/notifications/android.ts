@@ -41,11 +41,12 @@ interface RichPlugin {
     sound?: string;
     replaces?: string[];
     sticky: boolean;
+    keepOnOpen: boolean;
     actions: NotificationAction[];
   }): Promise<void>;
   cancel(options: { id: string }): Promise<void>;
   getPending(): Promise<{ notifications: Array<{ id: string; title: string; body: string; at: number; channelId: string }> }>;
-  takeEvents(): Promise<{ events: NotificationEvent[] }>;
+  takeEvents(options: { route: string }): Promise<{ events: NotificationEvent[] }>;
   addListener(event: 'notificationOpened', listener: (data: { id: string; route?: string }) => void): Promise<unknown>;
 }
 
@@ -102,14 +103,19 @@ export function createAndroidNotifications(): NotificationService {
       return toPermission((await (await plugin()).ln.requestPermissions()).display);
     },
     async schedule(id: string, title: string, body: string, at: Date, options: ScheduleOptions = {}) {
+      // Android cuts a title to one line, so a long title-only notification goes in the
+      // (expandable) text instead, with no heading, rather than being shown twice.
+      const long = !body && title.length > LONG_TITLE;
       if (needsRichEngine(options)) {
+        // The same id may still be scheduled in the other engine by an older version of the app.
+        await (await plugin()).ln.cancel({ notifications: [{ id: toNativeId(id) }] });
         await (
           await richPlugin()
         ).rich.schedule({
           id,
           notifId: toNativeId(options.slot ?? id),
-          title,
-          body,
+          title: long ? '' : title,
+          body: long ? title : body,
           at: at.getTime(),
           route: options.route,
           channelId: options.channel?.id ?? CHANNEL_ID,
@@ -120,13 +126,11 @@ export function createAndroidNotifications(): NotificationService {
           sound: options.channel?.sound,
           replaces: options.channel?.replaces,
           sticky: options.sticky === true,
+          keepOnOpen: options.keepOnOpen === true,
           actions: options.actions ?? [],
         });
         return;
       }
-      // Android cuts a title to one line, so a long title-only notification goes in the
-      // (expandable) text instead, with no heading, rather than being shown twice.
-      const long = !body && title.length > LONG_TITLE;
       await (await plugin()).ln.schedule({
         notifications: [
           {
@@ -169,8 +173,8 @@ export function createAndroidNotifications(): NotificationService {
     onDelivered() {
       return () => {};
     },
-    async takeEvents() {
-      return (await (await richPlugin()).rich.takeEvents()).events;
+    async takeEvents(routePrefix) {
+      return (await (await richPlugin()).rich.takeEvents({ route: routePrefix })).events;
     },
   };
 }

@@ -10,6 +10,7 @@ interface Entry {
   route?: string;
   /** Notifications with the same tag replace each other in the browser's notification list. */
   tag: string;
+  sticky?: boolean;
   timer?: ReturnType<typeof setTimeout>;
 }
 
@@ -31,8 +32,9 @@ export function createWebNotifications(): NotificationService {
   function show(id: string, entry: Entry) {
     entries.delete(id);
     if (permission() !== 'granted') return;
+    const options = { body: entry.body, tag: entry.tag, requireInteraction: entry.sticky };
     try {
-      const notification = new Notification(entry.title, { body: entry.body, tag: entry.tag });
+      const notification = new Notification(entry.title, options);
       notification.onclick = () => {
         window.focus();
         if (entry.route) window.location.hash = entry.route;
@@ -40,7 +42,7 @@ export function createWebNotifications(): NotificationService {
       };
     } catch {
       // shortcut: Chrome on Android only allows service-worker notifications; tapping these does not route.
-      void navigator.serviceWorker?.ready.then((sw) => sw.showNotification(entry.title, { body: entry.body, tag: entry.tag }));
+      void navigator.serviceWorker?.ready.then((sw) => sw.showNotification(entry.title, options));
     }
     for (const listener of listeners) listener(id);
   }
@@ -63,8 +65,8 @@ export function createWebNotifications(): NotificationService {
     },
     async schedule(id: string, title: string, body: string, at: Date, options: ScheduleOptions = {}) {
       await service.cancel(id);
-      // shortcut: sticky, actions and channel are Android-only; a browser shows a plain notification.
-      const entry: Entry = { title, body, at, route: options.route, tag: options.slot ?? id };
+      // shortcut: actions and channel are Android-only; a sticky one stays on screen, but the browser still lets you close it.
+      const entry: Entry = { title, body, at, route: options.route, tag: options.slot ?? id, sticky: options.sticky };
       entries.set(id, entry);
       arm(id, entry);
     },

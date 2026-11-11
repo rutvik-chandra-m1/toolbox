@@ -3,10 +3,10 @@ import { BellOff, BellRing, Clock, Info, Pencil, Trash2 } from 'lucide-react';
 import { getNotificationService, type NotificationPermission } from '@/shared/notifications';
 import { useCollection } from '@/shared/storage';
 import { Button, ConfirmDialog, Dialog, EmptyState, IconButton, PageContainer, Spinner } from '@/shared/ui';
-import { defaultDraft, formatWhen, pastStatus, splitReminders, toDraft } from './logic';
-import { createReminderRepository } from './repository';
+import { defaultDraft, formatWhen, pastStatus, splitReminders, toDraft, type ReminderStatus } from './logic';
+import { createReminderRepository, NOTIFICATION_OPTIONS } from './repository';
 import { ReminderForm } from './ReminderForm';
-import { COLLECTION, ROUTE, TOOL_ID, type Reminder } from './types';
+import { COLLECTION, TOOL_ID, type Reminder } from './types';
 
 const TEST_DELAY_MS = 10_000;
 
@@ -80,7 +80,7 @@ export default function NotifierPage() {
       'This is a test notification from Toolbox.',
       '',
       new Date(Date.now() + TEST_DELAY_MS),
-      { route: ROUTE },
+      NOTIFICATION_OPTIONS,
     );
     setNotice(
       android
@@ -129,7 +129,8 @@ export default function NotifierPage() {
             <p className="flex items-start gap-2">
               <Info className="mt-0.5 size-4 shrink-0" aria-hidden />
               On a laptop, reminders only appear while this app is open (a browser tab or the installed app). Ones that
-              come due while it is closed are listed as Missed. The Android app notifies even when closed.
+              come due while it is closed are listed as Missed. The Android app notifies even when closed, and only it
+              has the Done and Not today buttons.
             </p>
           </Banner>
         )}
@@ -283,7 +284,7 @@ function ReminderRow({
 }: {
   reminder: Reminder;
   now: number;
-  status?: 'Sent' | 'Missed';
+  status?: ReminderStatus;
   onEdit: (r: Reminder) => void;
   onDelete: (r: Reminder) => void;
 }) {
@@ -299,7 +300,7 @@ function ReminderRow({
           {status && (
             <span
               className={
-                status === 'Missed'
+                status === 'Missed' || status === 'Not today'
                   ? 'rounded-full bg-amber-100 px-2 py-0.5 font-medium text-amber-900 dark:bg-amber-950 dark:text-amber-200'
                   : 'rounded-full bg-green-100 px-2 py-0.5 font-medium text-green-900 dark:bg-green-950 dark:text-green-200'
               }

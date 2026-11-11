@@ -23,7 +23,7 @@ public class RichReceiver extends BroadcastReceiver {
                 if (key != null) RichNotifier.snooze(context, key, intent.getIntExtra(RichNotifier.EXTRA_MINUTES, 60));
                 break;
             case RichNotifier.ACTION_DISMISS:
-                if (key != null) RichNotifier.dismiss(context, key);
+                if (key != null) RichNotifier.dismiss(context, key, intent.getStringExtra(RichNotifier.EXTRA_ACTION));
                 break;
             case Intent.ACTION_BOOT_COMPLETED:
             case Intent.ACTION_MY_PACKAGE_REPLACED:

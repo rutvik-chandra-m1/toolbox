@@ -66,25 +66,36 @@ final class RichStore {
         return list;
     }
 
-    static synchronized void addEvent(Context context, String type, String id) {
+    static synchronized void addEvent(Context context, String type, String id, String route, String action) {
         try {
             JSONArray events = new JSONArray(prefs(context).getString(EVENTS, "[]"));
-            events.put(new JSONObject().put("type", type).put("id", id).put("at", System.currentTimeMillis()));
+            events.put(new JSONObject()
+                    .put("type", type)
+                    .put("id", id)
+                    .put("route", route)
+                    .put("action", action)
+                    .put("at", System.currentTimeMillis()));
             prefs(context).edit().putString(EVENTS, events.toString()).apply();
         } catch (JSONException ignored) {
             // an event we cannot record is not worth crashing a notification button for
         }
     }
 
-    /** Returns the recorded events once, then forgets them. */
-    static synchronized JSONArray takeEvents(Context context) {
+    /** Returns the events of notifications whose route starts with `routePrefix` once, then forgets them; other tools' events stay. */
+    static synchronized JSONArray takeEvents(Context context, String routePrefix) {
         JSONArray events;
         try {
             events = new JSONArray(prefs(context).getString(EVENTS, "[]"));
         } catch (JSONException e) {
             events = new JSONArray();
         }
-        prefs(context).edit().remove(EVENTS).apply();
-        return events;
+        JSONArray taken = new JSONArray();
+        JSONArray kept = new JSONArray();
+        for (int i = 0; i < events.length(); i++) {
+            JSONObject event = events.optJSONObject(i);
+            if (event != null) (event.optString("route").startsWith(routePrefix) ? taken : kept).put(event);
+        }
+        prefs(context).edit().putString(EVENTS, kept.toString()).apply();
+        return taken;
     }
 }
